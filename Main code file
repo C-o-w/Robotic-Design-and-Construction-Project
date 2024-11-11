@@ -1,4 +1,4 @@
-// Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 93-95)
+// Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 178-199)
 
 /* KNOWN BUGS
  Command inputting breaks with some colon errors
