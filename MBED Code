@@ -1,6 +1,8 @@
-https://docs.arduino.cc/libraries/arduinoble/
+//https://docs.arduino.cc/libraries/arduinoble/
+//https://rootsaid.com/arduino-ble-example/
 
 #include <mbed.h>
+#include <ArduinoBLE.h>
 
 // Define PWM pins for the motors
 mbed::PwmOut motorA_pwm(P1_2);   // Motor 1 PWM pin
@@ -43,6 +45,15 @@ void encoderISR_B() {
 }
 
 void setup() {
+
+  // begin initialization
+  if (!BLE.begin()) {
+    Serial.println("starting Bluetooth® Low Energy module failed!");
+
+    while (1)
+      ;
+  }
+
   // Initialize Serial communication at 9600 baud rate
   Serial.begin(9600);
   Serial.println("Serial communication started.");
@@ -71,7 +82,6 @@ void setup() {
 
 
 void loop() {
-
 }
 
 void SpeedCalc() {
