@@ -91,16 +91,16 @@ String OutputString = ("INITIAL");  //Used for data output
 
 //Variables to declare which outputs to use. Bluetooth much cleaner than serial due to problems with ledc
 int BluetoothEnabled = 1;
-int SerialEnabled = 0;
+int SerialEnabled = 1;
 
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
 
 void setup() {
-  pinMode(trigPin1, OUTPUT);     // Sets the trigPin as an Output
-  pinMode(echoPin1, INPUT);      // Sets the echoPin as an Input
-  pinMode(trigPin2, OUTPUT);     // Sets the trigPin as an Output
-  pinMode(echoPin2, INPUT);      // Sets the echoPin as an Input
+  pinMode(trigPin1, OUTPUT);  // Sets the trigPin as an Output
+  pinMode(echoPin1, INPUT);   // Sets the echoPin as an Input
+  pinMode(trigPin2, OUTPUT);  // Sets the trigPin as an Output
+  pinMode(echoPin2, INPUT);   // Sets the echoPin as an Input
 
   motors.begin();                //Begins the motor object
   Serial.begin(9600);            //Serial began at a baud rate of 9600, baud rate doesnt matter particularly but must match on the terminal
@@ -133,7 +133,7 @@ void CheckCommand() {  //Checks if a command has been sent to either the serial 
   }
 }
 
-void ReadCommand() {  //Detects the markers in the code and separates the sections, then decides which function to trigger. 
+void ReadCommand() {  //Detects the markers in the code and separates the sections, then decides which function to trigger.
   PrintMessageLn(InputCommand);
   CommandIndexA = InputCommand.indexOf(":");  //Error with detecting commands without any colons at the end
   if (CommandIndexA > -1) {
@@ -158,7 +158,7 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
   Serial.println(CurrentCommand);                                //Debug output
   if (CurrentCommand == "Brake" || CurrentCommand == "brake") {  //Code to decide which command has been inputted
     Brake();
-  } else if (CurrentCommand == "Forwards" || CurrentCommand == "forwards") {
+  } else if (CurrentCommand == "Forwards" || CurrentCommand == "forwards" || CurrentCommand == "Forward" || CurrentCommand == "forward") {
     CommandIntA = CommandInputA.toInt();  //Needed as by default the inputs are strings
     CommandIntB = CommandInputB.toInt();
     Forwards(CommandIntA, CommandIntB);
@@ -199,14 +199,13 @@ void PrintMessageLn(String MessageLn) {  //Used to send outputs over both serial
 }
 
 
-void ControlLoop() { //Loop to control movement
-
+void ControlLoop() {  //Loop to control movement
 }
 
 void PollSensor() {  //Checks the sensors and adds the values to the IR storage array
   CheckUltrasonicSensor1();
   CheckUltrasonicSensor2();
-  CheckSensor3();
+  //CheckSensor3();
   LeftLastState = digitalRead(LeftOutputA);
   RightLastState = digitalRead(RightOutputA);
 }
@@ -220,7 +219,7 @@ void MoveSpace(int Distance) {  //Not set up with correct values, needs to be te
   MovementCounter = MovementCounter + 1; */
 }
 
-void TurnLeft() { 
+void TurnLeft() {
 
   PrintMessageLn("Turning Left");
   motors.drive(-0.2, -0.2, 490);
@@ -230,7 +229,7 @@ void TurnLeft() {
   MovementCounter = MovementCounter + 1;
 }
 
-void TurnRight() { 
+void TurnRight() {
 
   PrintMessageLn("Turning Right");
   motors.drive(0.20, 0.2, 490);
@@ -320,7 +319,7 @@ void IsWallRight() {  //Checks for wall to the right
   }
 }
 
-void Encoder(int TargetDistance) { //DOESNT WORK YET
+void Encoder(int TargetDistance) {  //DOESNT WORK YET
   delay(TargetDistance);
   /* //RUNNING INTO HARDWARE ISSUES, HALL EFFECT SENSORS WERE NOT TRIGGERING PROPERLY, LEADING TO NO DETECTED CHANGES, WORKING FROM ULTRASONIC DATA INSTEAD. LEAVING IN IN CASE WE REMOVE THE HARDWARE ISSUES
   while (DistanceTravelled < TargetDistance) {
