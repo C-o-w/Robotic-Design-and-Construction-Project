@@ -140,14 +140,14 @@ void loop() {
   CheckCommand();
 
   if (EncoderX.triggered) {
-    Serial.println("Encoder X has triggered: ");
-    Serial.println(EncoderX.numberRotation);
+    DebugLn("Encoder X has triggered: ");
+    DebugLn(String(EncoderX.numberRotation));
     EncoderX.triggered = false;
   }
 
   if (EncoderY.triggered) {
-    Serial.println("Encoder Y has triggered: ");
-    Serial.println(EncoderY.numberRotation);
+    DebugLn("Encoder Y has triggered: ");
+    DebugLn(String(EncoderY.numberRotation));
     EncoderY.triggered = false;
   }
 
@@ -216,8 +216,12 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     Start = 0;
   } else if (CurrentCommand == "EnableDebug" || CurrentCommand == "enabledebug" || CurrentCommand == "Enabledebug" || CurrentCommand == "enableDebug") {
     DebugEnabled = 1;
+    Serial.print("Debug Enabled set to");
+    Serial.println(DebugEnabled);
   } else if (CurrentCommand == "DisableDebug" || CurrentCommand == "disabledebug" || CurrentCommand == "Disabledebug" || CurrentCommand == "disableDebug") {
     DebugEnabled = 0;
+    Serial.print("Debug Enabled set to");
+    Serial.println(DebugEnabled);
   } else if (CurrentCommand == "EnableBluetooth" || CurrentCommand == "enablebluetooth" || CurrentCommand == "Enablebluetooth" || CurrentCommand == "enableBluetooth") {
     BluetoothEnabled = 1;
   } else if (CurrentCommand == "DisableBluetooth" || CurrentCommand == "disablebluetooth" || CurrentCommand == "Disablebluetooth" || CurrentCommand == "disableBluetooth") {
