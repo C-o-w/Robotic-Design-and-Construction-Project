@@ -85,13 +85,14 @@ int CommandIndexB;                  //Position of second colon
 String CurrentCommand;              //First section of the inputted string (before the first colon)
 String CommandInputA;               //Second section of the inputted string (between the colons)
 String CommandInputB;               //Third section of the inputted strong (after the last colon)
-int CommandIntA;                    //Used if the first input is an int
-int CommandIntB;                    //Used if the second input is an int
+float CommandIntA;                  //Used if the first input is an int
+float CommandIntB;                  //Used if the second input is an int
 String OutputString = ("INITIAL");  //Used for data output
 
 //Variables to declare which outputs to use. Bluetooth much cleaner than serial due to problems with ledc
 int BluetoothEnabled = 1;
 int SerialEnabled = 1;
+int DebugEnabled = 1;
 
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
@@ -102,7 +103,7 @@ struct encoder {  //define encoder construct
   bool triggered;
 };
 
-encoder EncoderX = { LeftOutputB, 0, false };  //create encoder instance
+encoder EncoderX = { RightOutputB, 0, false };  //create encoder instance
 
 void IRAM_ATTR EncoderXInterrupt() {
   EncoderX.numberRotation += 1;
@@ -137,7 +138,7 @@ void setup() {
 
 void loop() {
   CheckCommand();
-  
+
   if (EncoderX.triggered) {
     Serial.println("Encoder X has triggered: ");
     Serial.println(EncoderX.numberRotation);
@@ -149,7 +150,7 @@ void loop() {
     Serial.println(EncoderY.numberRotation);
     EncoderY.triggered = false;
   }
-  
+
   delay(100);
 }
 
@@ -195,25 +196,42 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     CommandInputA = InputCommand.substring((CommandIndexA + 1));
     CommandInputB = "0";
   }
-  Serial.println(CurrentCommand); 
-  Serial.println(CommandInputA);
-  Serial.println(CommandInputB);                               //Debug output
+  DebugLn(String(CurrentCommand));
+  DebugLn("Command Inputs:");
+  DebugLn(String(CommandInputA));
+  DebugLn(String(CommandInputB));                                //Debug output
   if (CurrentCommand == "Brake" || CurrentCommand == "brake") {  //Code to decide which command has been inputted
     Brake();
   } else if (CurrentCommand == "Forwards" || CurrentCommand == "forwards" || CurrentCommand == "Forward" || CurrentCommand == "forward") {
     CommandIntA = CommandInputA.toFloat();  //Needed as by default the inputs are strings
     CommandIntB = CommandInputB.toFloat();
+    DebugLn(String("Command Int:"));
+    DebugLn(String(CommandIntA));
+    DebugLn(String(CommandIntB));
     Forwards(CommandIntA, CommandIntB);
+    //Forwards(0.2, 0.4);
   } else if (CurrentCommand == "Start" || CurrentCommand == "start") {
     Start = 1;
   } else if (CurrentCommand == "Stop" || CurrentCommand == "stop") {
     Start = 0;
+  } else if (CurrentCommand == "EnableDebug" || CurrentCommand == "enabledebug" || CurrentCommand == "Enabledebug" || CurrentCommand == "enableDebug") {
+    DebugEnabled = 1;
+  } else if (CurrentCommand == "DisableDebug" || CurrentCommand == "disabledebug" || CurrentCommand == "Disabledebug" || CurrentCommand == "disableDebug") {
+    DebugEnabled = 0;
+  } else if (CurrentCommand == "EnableBluetooth" || CurrentCommand == "enablebluetooth" || CurrentCommand == "Enablebluetooth" || CurrentCommand == "enableBluetooth") {
+    BluetoothEnabled = 1;
+  } else if (CurrentCommand == "DisableBluetooth" || CurrentCommand == "disablebluetooth" || CurrentCommand == "Disablebluetooth" || CurrentCommand == "disableBluetooth") {
+    BluetoothEnabled = 0;
+  } else if (CurrentCommand == "EnableSerial" || CurrentCommand == "enableserial" || CurrentCommand == "Enableserial" || CurrentCommand == "enableSerial") {
+    SerialEnabled = 1;
+  } else if (CurrentCommand == "DisableSerial" || CurrentCommand == "disableserial" || CurrentCommand == "Disableserial" || CurrentCommand == "disableSerial") {
+    SerialEnabled = 0;
   } else if (CurrentCommand == "EditLoopDelay" || CurrentCommand == "editloopdelay") {
     CommandIntA = CommandInputA.toInt();
     LoopDelay == CommandIntA;
-  } else if (CurrentCommand == "Encoder" || CurrentCommand == "encoder") {
-    CommandIntA = CommandInputA.toInt();  //Needed as by default the inputs are strings
-    Encoder(CommandIntA);
+  } else if (CurrentCommand == "ResetEncoder" || CurrentCommand == "resetencoder") {
+    EncoderX.numberRotation = 0;
+    EncoderY.numberRotation = 0;
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -243,6 +261,32 @@ void PrintMessageLn(String MessageLn) {  //Used to send outputs over both serial
   }
 }
 
+void Debug(String Message) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
+  if (DebugEnabled == 1) {
+    if (SerialEnabled == 1) {
+      Serial.print(Message);
+    }
+    if (BluetoothEnabled == 1) {  //Doesnt print bluetooth message, only adds to buffer. Will be printed once the PrintMessageLn() command is used. Is due to library problems
+      uint8_t buf[Message.length()];
+      memcpy(buf, Message.c_str(), Message.length());
+      SerialBT.write(buf, Message.length());
+    }
+  }
+}
+
+void DebugLn(String MessageLn) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
+  if (DebugEnabled == 1) {
+    if (SerialEnabled == 1) {
+      Serial.println(MessageLn);
+    }
+    if (BluetoothEnabled == 1) {  //Assembles the message, writes it to buffer then sends buffer
+      uint8_t buf[MessageLn.length()];
+      memcpy(buf, MessageLn.c_str(), MessageLn.length());
+      SerialBT.write(buf, MessageLn.length());
+      SerialBT.println();
+    }
+  }
+}
 
 void ControlLoop() {  //Loop to control movement
 }
@@ -291,10 +335,12 @@ void TurnBack() {
 
 void Forwards(float x, float y) {  //Command to run both motors based on the input, can be called from terminal (Forwards:x:y)
   PrintMessage("Moving Forwards, Motor speed values set to x = ");
-  PrintMessage(String(x));
+  //PrintMessage(String(x));
+  Serial.print(100.0 * x);
   PrintMessage(" y = ");
-  PrintMessageLn(String(y));
-  motors.drive(x, y);
+  Serial.print(100.0 * y);
+  //PrintMessageLn(String(y));
+  motors.drive(x, y, 10, false);
 }
 
 void Brake() {  //Brake functions for both motors, can be called from terminal (Brake::)
@@ -366,44 +412,4 @@ void IsWallRight() {  //Checks for wall to the right
 
 void Encoder(int TargetDistance) {  //DOESNT WORK YET
   delay(TargetDistance);
-  //RUNNING INTO HARDWARE ISSUES, HALL EFFECT SENSORS WERE NOT TRIGGERING PROPERLY, LEADING TO NO DETECTED CHANGES, WORKING FROM ULTRASONIC DATA INSTEAD. LEAVING IN IN CASE WE REMOVE THE HARDWARE ISSUES
-  /*
-  PrintMessage("Distance Travelled: ");
-  PrintMessageLn(String(DistanceTravelled));
-  Forwards(10,10);
-  while (DistanceTravelled < TargetDistance) {
-    PrintMessageLn("In While");
-    LeftState = digitalRead(LeftOutputA);  // Reads the "current" state of the outputA
-    // If the previous and the current state of the outputA are different, that means a Pulse has occured
-    if (LeftState != LeftLastState) {
-      // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-      if (digitalRead(LeftOutputB) != LeftState) {
-        LeftCounter = LeftCounter + 1;
-      } else {
-        LeftCounter = LeftCounter - 1;
-      }
-      Serial.print("Position: ");
-      Serial.println(LeftCounter);
-    }
-    LeftLastState = LeftState;  // Updates the previous state of the outputA with the current state
-
-    RightState = digitalRead(RightOutputA);  // Reads the "current" state of the outputA
-    // If the previous and the current state of the outputA are different, that means a Pulse has occured
-    if (RightState != RightLastState) {
-      // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-      if (digitalRead(RightOutputB) != RightState) {
-        RightCounter = RightCounter + 1;
-      } else {
-        RightCounter = RightCounter - 1;
-      }
-      Serial.print("Position: ");
-      Serial.println(RightCounter);
-    }
-    RightLastState = RightState;  // Updates the previous state of the outputA with the current state
-
-    DistanceTravelled = ((LeftCounter + RightCounter) / 2) * (2 * 3.14159265359 * 30);  //2*pi*wheel radius
-    PrintMessageLn((String(LeftState)));
-    PrintMessageLn((String(LeftLastState)));
-  }
-  Brake();*/
 }
