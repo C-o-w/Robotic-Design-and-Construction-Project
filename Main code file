@@ -212,30 +212,42 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     //Forwards(0.2, 0.4);
   } else if (CurrentCommand == "Start" || CurrentCommand == "start") {
     Start = 1;
+    DebugLn("Starting");
   } else if (CurrentCommand == "Stop" || CurrentCommand == "stop") {
     Start = 0;
+    DebugLn("Stopping");
   } else if (CurrentCommand == "EnableDebug" || CurrentCommand == "enabledebug" || CurrentCommand == "Enabledebug" || CurrentCommand == "enableDebug") {
     DebugEnabled = 1;
-    Serial.print("Debug Enabled set to");
+    Serial.print("Debug Enabled set to ");
     Serial.println(DebugEnabled);
   } else if (CurrentCommand == "DisableDebug" || CurrentCommand == "disabledebug" || CurrentCommand == "Disabledebug" || CurrentCommand == "disableDebug") {
     DebugEnabled = 0;
-    Serial.print("Debug Enabled set to");
+    Serial.print("Debug Enabled set to ");
     Serial.println(DebugEnabled);
   } else if (CurrentCommand == "EnableBluetooth" || CurrentCommand == "enablebluetooth" || CurrentCommand == "Enablebluetooth" || CurrentCommand == "enableBluetooth") {
     BluetoothEnabled = 1;
+    Debug("Bluetooth Enabled set to: ");
+    DebugLn(String(BluetoothEnabled));
   } else if (CurrentCommand == "DisableBluetooth" || CurrentCommand == "disablebluetooth" || CurrentCommand == "Disablebluetooth" || CurrentCommand == "disableBluetooth") {
     BluetoothEnabled = 0;
+    Debug("Bluetooth Enabled set to: ");
+    DebugLn(String(BluetoothEnabled));
   } else if (CurrentCommand == "EnableSerial" || CurrentCommand == "enableserial" || CurrentCommand == "Enableserial" || CurrentCommand == "enableSerial") {
     SerialEnabled = 1;
+    Debug("Serial Enabled set to: ");
+    DebugLn(String(SerialEnabled));
   } else if (CurrentCommand == "DisableSerial" || CurrentCommand == "disableserial" || CurrentCommand == "Disableserial" || CurrentCommand == "disableSerial") {
     SerialEnabled = 0;
+    Debug("Serial Enabled set to: ");
+    DebugLn(String(SerialEnabled));
   } else if (CurrentCommand == "EditLoopDelay" || CurrentCommand == "editloopdelay") {
     CommandIntA = CommandInputA.toInt();
     LoopDelay == CommandIntA;
+    Debug("Loop Delay Enabled set to: ");
+    DebugLn(String(LoopDelay));
   } else if (CurrentCommand == "ResetEncoder" || CurrentCommand == "resetencoder") {
-    EncoderX.numberRotation = 0;
-    EncoderY.numberRotation = 0;
+    DebugLn("Resetting Encoders");
+    ResetEncoder();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -292,6 +304,11 @@ void DebugLn(String MessageLn) {  //Used to send outputs over both serial and IR
   }
 }
 
+void ResetEncoder() {
+  EncoderX.numberRotation = 0;
+  EncoderY.numberRotation = 0;
+}
+
 void ControlLoop() {  //Loop to control movement
 }
 
@@ -339,11 +356,9 @@ void TurnBack() {
 
 void Forwards(float x, float y) {  //Command to run both motors based on the input, can be called from terminal (Forwards:x:y)
   PrintMessage("Moving Forwards, Motor speed values set to x = ");
-  //PrintMessage(String(x));
-  Serial.print(100.0 * x);
+  PrintMessage(String(x));
   PrintMessage(" y = ");
-  Serial.print(100.0 * y);
-  //PrintMessageLn(String(y));
+  PrintMessageLn(String(y));
   motors.drive(x, y, 10, false);
 }
 
