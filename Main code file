@@ -93,6 +93,7 @@ String OutputString = ("INITIAL");  //Used for data output
 int BluetoothEnabled = 1;
 int SerialEnabled = 1;
 int DebugEnabled = 1;
+int VerboseEnabled = 1;
 
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
@@ -140,14 +141,14 @@ void loop() {
   CheckCommand();
 
   if (EncoderX.triggered) {
-    DebugLn("Encoder X has triggered: ");
-    DebugLn(String(EncoderX.numberRotation));
+    DebugLn("Encoder X has triggered: ", 1);
+    DebugLn(String(EncoderX.numberRotation), 1);
     EncoderX.triggered = false;
   }
 
   if (EncoderY.triggered) {
-    DebugLn("Encoder Y has triggered: ");
-    DebugLn(String(EncoderY.numberRotation));
+    DebugLn("Encoder Y has triggered: ", 1);
+    DebugLn(String(EncoderY.numberRotation), 1);
     EncoderY.triggered = false;
   }
 
@@ -196,26 +197,27 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     CommandInputA = InputCommand.substring((CommandIndexA + 1));
     CommandInputB = "0";
   }
-  DebugLn(String(CurrentCommand));
-  DebugLn("Command Inputs:");
-  DebugLn(String(CommandInputA));
-  DebugLn(String(CommandInputB));                                //Debug output
+  DebugLn("Current Command:", 0);
+  DebugLn(String(CurrentCommand), 0);
+  DebugLn("Command Inputs:", 0);
+  DebugLn(String(CommandInputA), 0);
+  DebugLn(String(CommandInputB), 0);                             //Debug output
   if (CurrentCommand == "Brake" || CurrentCommand == "brake") {  //Code to decide which command has been inputted
     Brake();
   } else if (CurrentCommand == "Forwards" || CurrentCommand == "forwards" || CurrentCommand == "Forward" || CurrentCommand == "forward") {
     CommandIntA = CommandInputA.toFloat();  //Needed as by default the inputs are strings
     CommandIntB = CommandInputB.toFloat();
-    DebugLn(String("Command Int:"));
-    DebugLn(String(CommandIntA));
-    DebugLn(String(CommandIntB));
+    DebugLn(String("Command Int:"), 0);
+    DebugLn(String(CommandIntA), 0);
+    DebugLn(String(CommandIntB), 0);
     Forwards(CommandIntA, CommandIntB);
     //Forwards(0.2, 0.4);
   } else if (CurrentCommand == "Start" || CurrentCommand == "start") {
     Start = 1;
-    DebugLn("Starting");
+    DebugLn("Starting", 0);
   } else if (CurrentCommand == "Stop" || CurrentCommand == "stop") {
     Start = 0;
-    DebugLn("Stopping");
+    DebugLn("Stopping", 0);
   } else if (CurrentCommand == "EnableDebug" || CurrentCommand == "enabledebug" || CurrentCommand == "Enabledebug" || CurrentCommand == "enableDebug") {
     DebugEnabled = 1;
     Serial.print("Debug Enabled set to ");
@@ -224,29 +226,37 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     DebugEnabled = 0;
     Serial.print("Debug Enabled set to ");
     Serial.println(DebugEnabled);
+  } else if (CurrentCommand == "EnableVerbose" || CurrentCommand == "enableverbose" || CurrentCommand == "Enableverbose" || CurrentCommand == "enableVerbose") {
+    VerboseEnabled = 1;
+    Serial.print("Verbose Enabled set to ");
+    Serial.println(VerboseEnabled);
+  } else if (CurrentCommand == "DisableVerbose" || CurrentCommand == "disableverbose" || CurrentCommand == "Disableverbose" || CurrentCommand == "disableVerbose") {
+    VerboseEnabled = 0;
+    Serial.print("Verbose Enabled set to ");
+    Serial.println(VerboseEnabled);
   } else if (CurrentCommand == "EnableBluetooth" || CurrentCommand == "enablebluetooth" || CurrentCommand == "Enablebluetooth" || CurrentCommand == "enableBluetooth") {
     BluetoothEnabled = 1;
-    Debug("Bluetooth Enabled set to: ");
-    DebugLn(String(BluetoothEnabled));
+    Debug("Bluetooth Enabled set to: ", 0);
+    DebugLn(String(BluetoothEnabled), 0);
   } else if (CurrentCommand == "DisableBluetooth" || CurrentCommand == "disablebluetooth" || CurrentCommand == "Disablebluetooth" || CurrentCommand == "disableBluetooth") {
     BluetoothEnabled = 0;
-    Debug("Bluetooth Enabled set to: ");
-    DebugLn(String(BluetoothEnabled));
+    Debug("Bluetooth Enabled set to: ", 0);
+    DebugLn(String(BluetoothEnabled), 0);
   } else if (CurrentCommand == "EnableSerial" || CurrentCommand == "enableserial" || CurrentCommand == "Enableserial" || CurrentCommand == "enableSerial") {
     SerialEnabled = 1;
-    Debug("Serial Enabled set to: ");
-    DebugLn(String(SerialEnabled));
+    Debug("Serial Enabled set to: ", 0);
+    DebugLn(String(SerialEnabled), 0);
   } else if (CurrentCommand == "DisableSerial" || CurrentCommand == "disableserial" || CurrentCommand == "Disableserial" || CurrentCommand == "disableSerial") {
     SerialEnabled = 0;
-    Debug("Serial Enabled set to: ");
-    DebugLn(String(SerialEnabled));
+    Debug("Serial Enabled set to: ", 0);
+    DebugLn(String(SerialEnabled), 0);
   } else if (CurrentCommand == "EditLoopDelay" || CurrentCommand == "editloopdelay") {
     CommandIntA = CommandInputA.toInt();
     LoopDelay == CommandIntA;
-    Debug("Loop Delay Enabled set to: ");
-    DebugLn(String(LoopDelay));
+    Debug("Loop Delay Enabled set to: ", 0);
+    DebugLn(String(LoopDelay), 0);
   } else if (CurrentCommand == "ResetEncoder" || CurrentCommand == "resetencoder") {
-    DebugLn("Resetting Encoders");
+    DebugLn("Resetting Encoders", 0);
     ResetEncoder();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
@@ -277,32 +287,60 @@ void PrintMessageLn(String MessageLn) {  //Used to send outputs over both serial
   }
 }
 
-void Debug(String Message) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
+void Debug(String Message, int Verbose) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
   if (DebugEnabled == 1) {
-    if (SerialEnabled == 1) {
-      Serial.print(Message);
-    }
-    if (BluetoothEnabled == 1) {  //Doesnt print bluetooth message, only adds to buffer. Will be printed once the PrintMessageLn() command is used. Is due to library problems
-      uint8_t buf[Message.length()];
-      memcpy(buf, Message.c_str(), Message.length());
-      SerialBT.write(buf, Message.length());
+    if (Verbose == 1) {
+      if (VerboseEnabled == 1) {
+        if (SerialEnabled == 1) {
+          Serial.print(Message);
+        }
+        if (BluetoothEnabled == 1) {  //Assembles the message, writes it to buffer then sends buffer
+          uint8_t buf[Message.length()];
+          memcpy(buf, Message.c_str(), Message.length());
+          SerialBT.write(buf, Message.length());
+        }
+      }
+    } else {
+      if (SerialEnabled == 1) {
+        Serial.print(Message);
+      }
+      if (BluetoothEnabled == 1) {  //Doesnt print bluetooth message, only adds to buffer. Will be printed once the PrintMessageLn() command is used. Is due to library problems
+        uint8_t buf[Message.length()];
+        memcpy(buf, Message.c_str(), Message.length());
+        SerialBT.write(buf, Message.length());
+      }
     }
   }
 }
 
-void DebugLn(String MessageLn) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
+void DebugLn(String MessageLn, char Verbose) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
   if (DebugEnabled == 1) {
-    if (SerialEnabled == 1) {
-      Serial.println(MessageLn);
-    }
-    if (BluetoothEnabled == 1) {  //Assembles the message, writes it to buffer then sends buffer
-      uint8_t buf[MessageLn.length()];
-      memcpy(buf, MessageLn.c_str(), MessageLn.length());
-      SerialBT.write(buf, MessageLn.length());
-      SerialBT.println();
+    if (Verbose == 1) {
+      if (VerboseEnabled == 1) {
+        if (SerialEnabled == 1) {
+          Serial.println(MessageLn);
+        }
+        if (BluetoothEnabled == 1) {  //Assembles the message, writes it to buffer then sends buffer
+          uint8_t buf[MessageLn.length()];
+          memcpy(buf, MessageLn.c_str(), MessageLn.length());
+          SerialBT.write(buf, MessageLn.length());
+          SerialBT.println();
+        }
+      }
+    } else {
+      if (SerialEnabled == 1) {
+        Serial.println(MessageLn);
+      }
+      if (BluetoothEnabled == 1) {  //Assembles the message, writes it to buffer then sends buffer
+        uint8_t buf[MessageLn.length()];
+        memcpy(buf, MessageLn.c_str(), MessageLn.length());
+        SerialBT.write(buf, MessageLn.length());
+        SerialBT.println();
+      }
     }
   }
 }
+
 
 void ResetEncoder() {
   EncoderX.numberRotation = 0;
