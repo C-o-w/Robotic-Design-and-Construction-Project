@@ -25,10 +25,10 @@ int Start = 1;
 int LoopDelay = 1;
 
 // defines pins numbers
-const int trigPin1 = 5;
-const int echoPin1 = 18;
-const int trigPin2 = 19;
-const int echoPin2 = 21;
+const int trigPin1 = 4;
+const int echoPin1 = 5;
+const int trigPin2 = 18;
+const int echoPin2 = 19;
 // defines variables
 long duration;
 int distance;
@@ -65,8 +65,8 @@ Tb6612fng motors(STBY, MotorA1, MotorA2, MotorAPWM, MotorB1, MotorB2, MotorBPWM)
 //Variables for the rotary encoders
 #define LeftOutputA 35
 #define LeftOutputB 34
-#define RightOutputA 2
-#define RightOutputB 4
+#define RightOutputA 15
+#define RightOutputB 2
 
 int LeftCounter = 0;
 int LeftState;
