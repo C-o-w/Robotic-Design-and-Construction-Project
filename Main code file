@@ -5,6 +5,11 @@
  Bluetooth disconnects 11 seconds after a message is sent from terminal, doesnt reset device just disconnects so you can reconnect easily.
 */
 
+
+#include <Arduino.h>
+#include <queue>
+#include <vector>
+
 #include <TB6612FNG.h>        //Motor controller library https://github.com/vincasmiliunas/ESP32-Arduino-TB6612FNG/blob/master/examples/TwoMotors/TwoMotors.ino
 #include <BluetoothSerial.h>  //ESP32 bluetooth library https://github.com/espressif/arduino-esp32/tree/master/libraries/BluetoothSerial/examples
 
@@ -98,6 +103,54 @@ int VerboseEnabled = 1;
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
 
+#define N 20        // Size of the maze (20x20)
+#define INF 999999  // Infinity, representing unvisited cells
+
+// Directions for moving in the maze (up, down, left, right)
+int dRow[] = { -1, 1, 0, 0 };  // Row direction for up and down
+int dCol[] = { 0, 0, -1, 1 };  // Column direction for left and right
+
+// Maze: 0 for unknown, 1 for free space, 2 for wall, temporoary simulated map, in future fill with 0s as base and fill information as found
+int maze[N][N] = {
+  { 1, 1, 1, 2, 2, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1 },
+  { 1, 1, 1, 2, 0, 1, 0, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 0, 1 },
+  { 1, 1, 1, 2, 0, 1, 0, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 0, 0, 1 },
+  { 1, 1, 1, 2, 0, 1, 0, 0, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1 },
+  { 1, 1, 1, 2, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1 },
+  { 2, 1, 1, 2, 0, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1 },
+  { 2, 2, 1, 2, 0, 1, 0, 2, 1, 2, 2, 2, 1, 1, 2, 1, 2, 1, 1, 1 },
+  { 0, 0, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 1, 2, 2, 0, 0, 2, 1, 1 },
+  { 2, 0, 1, 1, 0, 1, 1, 0, 1, 1, 2, 2, 2, 1, 2, 0, 1, 1, 0, 1 },
+  { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 0, 1, 1, 1, 1, 2, 2, 1 },
+  { 2, 0, 1, 2, 2, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 2, 1, 2, 0, 1 },
+  { 1, 0, 1, 2, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 2, 2, 1 },
+  { 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1 },
+  { 2, 1, 2, 2, 0, 1, 2, 0, 1, 2, 2, 2, 0, 0, 1, 0, 1, 1, 1, 2 },
+  { 2, 0, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 2, 1, 2, 0, 1 },
+  { 1, 1, 1, 1, 2, 2, 2, 1, 0, 1, 1, 2, 1, 0, 0, 1, 1, 0, 1, 2 },
+  { 2, 1, 2, 1, 1, 1, 0, 1, 0, 1, 2, 2, 1, 0, 1, 2, 0, 1, 2, 0 },
+  { 2, 0, 2, 1, 1, 2, 2, 1, 0, 1, 1, 0, 2, 0, 2, 1, 2, 1, 0, 1 },
+  { 2, 1, 0, 0, 2, 0, 0, 1, 2, 2, 1, 0, 1, 0, 0, 1, 0, 1, 1, 2 },
+  { 1, 2, 2, 2, 2, 0, 1, 1, 0, 1, 0, 1, 2, 1, 1, 2, 0, 0, 0, 1 }
+};
+
+
+int startRow = 0;
+int startCol = 0;  // Starting point (top-left)
+int endRow = 19;
+int endCol = 19;  // Ending point (bottom-right)
+
+std::vector<std::pair<int, int>> path;
+
+// Structure to represent a cell in the maze
+struct Cell {
+  int row, col;
+  int dist;  // Distance from the start cell
+  bool operator>(const Cell& other) const {
+    return dist > other.dist;  // Min-heap by distance
+  }
+};
+
 struct encoder {  //define encoder construct
   const uint8_t PIN;
   uint32_t numberRotation;
@@ -129,6 +182,9 @@ void setup() {
 
   pinMode(EncoderY.PIN, INPUT_PULLUP);
   attachInterrupt(EncoderY.PIN, EncoderYInterrupt, FALLING);
+
+
+
 
   motors.begin();                //Begins the motor object
   Serial.begin(9600);            //Serial began at a baud rate of 9600, baud rate doesnt matter particularly but must match on the terminal
@@ -250,14 +306,17 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     SerialEnabled = 0;
     Debug("Serial Enabled set to: ", 0);
     DebugLn(String(SerialEnabled), 0);
-  } else if (CurrentCommand == "EditLoopDelay" || CurrentCommand == "editloopdelay") {
+  } else if (CurrentCommand == "EditLoopDelay" || CurrentCommand == "editloopdelay" || CurrentCommand == "Editloopdelay" || CurrentCommand == "editLoopdelay" || CurrentCommand == "editloopDelay" || CurrentCommand == "EditloopDelay" || CurrentCommand == "editLoopDelay" || CurrentCommand == "EditLoopdelay") {
     CommandIntA = CommandInputA.toInt();
     LoopDelay == CommandIntA;
     Debug("Loop Delay Enabled set to: ", 0);
     DebugLn(String(LoopDelay), 0);
-  } else if (CurrentCommand == "ResetEncoder" || CurrentCommand == "resetencoder") {
+  } else if (CurrentCommand == "ResetEncoder" || CurrentCommand == "resetencoder" || CurrentCommand == "resetEncoder" || CurrentCommand == "Resetencoder") {
     DebugLn("Resetting Encoders", 0);
     ResetEncoder();
+  } else if (CurrentCommand == "SolveMaze" || CurrentCommand == "solvemaze" || CurrentCommand == "Solvemaze" || CurrentCommand == "solveMaze") {
+    DebugLn("Running Dijkstra's Algorithm", 0);
+    SolveMaze();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -341,6 +400,115 @@ void DebugLn(String MessageLn, char Verbose) {  //Used to send outputs over both
   }
 }
 
+void SolveMaze() {
+  // Run Dijkstra to solve the maze and get the path
+  dijkstra(startRow, startCol, endRow, endCol, path);
+  delay(10000);
+  Serial.println("Begin Navigation");
+  delay(1000);
+  // Robot's movement simulation
+  int currentIdx = 0;
+  while (currentIdx < path.size()) {
+    Serial.println("------------------------------------------------------------------------------------------------------------------------------------------");
+    move(path, currentIdx);  // Move the robot to the next position in the path
+  }
+}
+
+void printMaze() {
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      if (maze[i][j] == 2) {
+        Serial.print("2");  // Wall
+      } else if (maze[i][j] == 1) {
+        Serial.print("1");  // Free space
+      } else if (maze[i][j] == 0) {
+        Serial.print("?");  // Unknown space
+      } else if (maze[i][j] == 3) {
+        Serial.print("X");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+}
+
+void dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<std::pair<int, int>>& path) {
+  // Priority queue for Dijkstra's algorithm
+  std::priority_queue<Cell, std::vector<Cell>, std::greater<Cell>> pq;
+
+  // Distance array, initialized to INF
+  int dist[N][N];
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      dist[i][j] = INF;
+    }
+  }
+  dist[startRow][startCol] = 0;  // Starting point
+
+  // Start with the source cell
+  pq.push({ startRow, startCol, 0 });
+
+  while (!pq.empty()) {
+    Cell curr = pq.top();
+    pq.pop();
+
+    int row = curr.row;
+    int col = curr.col;
+
+    // If we reach the destination, construct the path
+    if (row == endRow && col == endCol) {
+      path.push_back({ row, col });
+      while (row != startRow || col != startCol) {
+        for (int i = 0; i < 4; i++) {
+          int newRow = row + dRow[i];
+          int newCol = col + dCol[i];
+          if (newRow >= 0 && newRow < N && newCol >= 0 && newCol < N && dist[newRow][newCol] == dist[row][col] - 1) {
+            path.push_back({ newRow, newCol });
+            row = newRow;
+            col = newCol;
+            break;
+          }
+        }
+      }
+      std::reverse(path.begin(), path.end());
+      return;
+    }
+
+    // Explore neighbors (up, down, left, right)
+    for (int i = 0; i < 4; i++) {
+      int newRow = row + dRow[i];
+      int newCol = col + dCol[i];
+
+      // Check if the neighbor is within bounds and is a free space (1)
+      if (newRow >= 0 && newRow < N && newCol >= 0 && newCol < N && maze[newRow][newCol] != 2) {
+        int newDist = dist[row][col] + 1;  // Each move costs 1 step
+
+        // If a shorter path is found, update the distance and push to the queue
+        if (newDist < dist[newRow][newCol]) {
+          dist[newRow][newCol] = newDist;
+          pq.push({ newRow, newCol, newDist });
+        }
+      }
+    }
+  }
+
+  // If no path is found
+  Serial.println("No path found!");
+}
+
+void move(std::vector<std::pair<int, int>>& path, int& currentIdx) {
+  if (currentIdx < path.size()) {
+    int row = path[currentIdx].first;
+    int col = path[currentIdx].second;
+
+    // Update the maze to show robot's position
+    maze[row][col] = 3;
+    printMaze();
+    delay(500);  // Slow down the movement for visibility
+
+    currentIdx++;  // Move to the next step in the path
+  }
+}
 
 void ResetEncoder() {
   EncoderX.numberRotation = 0;
