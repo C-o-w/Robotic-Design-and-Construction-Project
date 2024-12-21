@@ -402,7 +402,7 @@ void DebugLn(String MessageLn, char Verbose) {  //Used to send outputs over both
 
 void SolveMaze() {
   // Run Dijkstra to solve the maze and get the path
-  dijkstra(startRow, startCol, endRow, endCol, path);
+  Dijkstra(startRow, startCol, endRow, endCol, path);
   delay(1000);
   Serial.println("Begin Navigation");
   delay(1000);
@@ -410,11 +410,11 @@ void SolveMaze() {
   int currentIdx = 0;
   while (currentIdx < path.size()) {
     Serial.println("------------------------------------------------------------------------------------------------------------------------------------------");
-    move(path, currentIdx);  // Move the robot to the next position in the path
+    DijkstraMove(path, currentIdx);  // Move the robot to the next position in the path
   }
 }
 
-void printMaze() {
+void PrintMaze() {
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
       if (maze[i][j] == 2) {
@@ -432,7 +432,7 @@ void printMaze() {
   Serial.println();
 }
 
-void dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<std::pair<int, int>>& path) {
+void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<std::pair<int, int>>& path) {
   // Priority queue for Dijkstra's algorithm
   std::priority_queue<Cell, std::vector<Cell>, std::greater<Cell>> pq;
 
@@ -496,14 +496,14 @@ void dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   Serial.println("No path found!");
 }
 
-void move(std::vector<std::pair<int, int>>& path, int& currentIdx) {
+void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) {
   if (currentIdx < path.size()) {
     int row = path[currentIdx].first;
     int col = path[currentIdx].second;
 
     // Update the maze to show robot's position
     maze[row][col] = 3;
-    printMaze();
+    PrintMaze();
     delay(500);  // Slow down the movement for visibility
 
     currentIdx++;  // Move to the next step in the path
