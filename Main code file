@@ -103,7 +103,8 @@ int VerboseEnabled = 1;
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
 
-#define N 20        // Size of the maze (20x20)
+#define N1 40       // Size of the maze (20x20) ROW
+#define N2 40       //                          COL
 #define INF 999999  // Infinity, representing unvisited cells
 
 // Directions for moving in the maze (up, down, left, right)
@@ -111,34 +112,55 @@ int dRow[] = { -1, 1, 0, 0 };  // Row direction for up and down
 int dCol[] = { 0, 0, -1, 1 };  // Column direction for left and right
 
 // Maze: 0 for unknown, 1 for free space, 2 for wall, temporoary simulated map, in future fill with 0s as base and fill information as found
-int maze[N][N] = {
-  { 1, 2, 1, 2, 2, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1 },
-  { 1, 2, 1, 2, 0, 1, 0, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 0, 1 },
-  { 1, 2, 1, 2, 0, 1, 0, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 0, 0, 1 },
-  { 1, 2, 1, 2, 0, 1, 0, 0, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1 },
-  { 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1 },
-  { 1, 2, 1, 2, 0, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1 },
-  { 1, 2, 1, 2, 0, 1, 0, 2, 1, 2, 2, 2, 1, 1, 2, 1, 2, 1, 1, 1 },
-  { 0, 2, 1, 2, 0, 1, 1, 2, 1, 2, 2, 1, 1, 2, 2, 0, 0, 2, 1, 1 },
-  { 1, 2, 1, 1, 0, 1, 1, 0, 1, 1, 2, 2, 2, 1, 2, 0, 1, 1, 0, 1 },
-  { 1, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 0, 1, 1, 1, 1, 2, 2, 1 },
-  { 1, 2, 1, 2, 2, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 2, 1, 2, 0, 1 },
-  { 1, 2, 1, 2, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 2, 2, 1 },
-  { 1, 2, 1, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1 },
-  { 1, 2, 2, 2, 0, 1, 2, 0, 1, 2, 2, 2, 0, 0, 1, 0, 1, 1, 1, 2 },
-  { 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 2, 1, 2, 0, 1 },
-  { 1, 1, 1, 1, 2, 2, 2, 1, 0, 1, 1, 2, 1, 0, 0, 1, 1, 0, 1, 1 },
-  { 2, 1, 2, 1, 1, 1, 0, 1, 0, 1, 2, 2, 1, 0, 1, 2, 0, 1, 2, 0 },
-  { 2, 0, 2, 1, 1, 1, 2, 1, 0, 1, 1, 0, 2, 0, 2, 1, 2, 1, 2, 1 },
-  { 2, 1, 0, 0, 2, 0, 0, 1, 2, 2, 1, 0, 1, 0, 0, 1, 0, 1, 2, 1 },
-  { 1, 2, 2, 2, 2, 0, 1, 1, 0, 1, 0, 1, 2, 1, 1, 2, 0, 0, 2, 1 }
+int maze[N1][N2] = {
+
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 }
 };
 
 
-int startRow = 0;
-int startCol = 0;  // Starting point (top-left)
-int endRow = 19;
-int endCol = 19;  // Ending point (bottom-right)
+int startRow = 2;
+int startCol = 2;  // Starting point (top-left)
+int endRow = 39;
+int endCol = 39;  // Ending point (bottom-right)
 
 std::vector<std::pair<int, int>> path;
 
@@ -400,12 +422,41 @@ void DebugLn(String MessageLn, char Verbose) {  //Used to send outputs over both
   }
 }
 
+void PrintMaze() {
+  for (int i = 0; i < N1; i++) {
+    for (int j = 0; j < N2; j++) {
+      if (maze[i][j] == 2) {
+        Serial.print("#");  // Wall
+      } else if (maze[i][j] == 1) {
+        Serial.print(".");  // Free space
+      } else if (maze[i][j] == 0) {
+        Serial.print("?");  // Unknown space
+      } else if (maze[i][j] == 3) {
+        Serial.print("X");  // Robot's 5x5 block representation
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+}
+
 void SolveMaze() {
   // Run Dijkstra to solve the maze and get the path
   Dijkstra(startRow, startCol, endRow, endCol, path);
   delay(1000);
   Serial.println("Begin Navigation");
   delay(1000);
+
+  // Debug: Print the path found by Dijkstra
+  Serial.println("Path found by Dijkstra:");
+  for (auto& step : path) {
+    Serial.print("(");
+    Serial.print(step.first);
+    Serial.print(", ");
+    Serial.print(step.second);
+    Serial.println(")");
+  }
+
   // Robot's movement simulation
   int currentIdx = 0;
   while (currentIdx < path.size()) {
@@ -414,22 +465,34 @@ void SolveMaze() {
   }
 }
 
-void PrintMaze() {
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      if (maze[i][j] == 2) {
-        Serial.print("#");  // Wall
-      } else if (maze[i][j] == 1) {
-        Serial.print(".");  // Free space
-      } else if (maze[i][j] == 0) {
-        Serial.print("?");  // Unknown space
-      } else if (maze[i][j] == 3) {
-        Serial.print("X");
+// Check if the robot's 5x5 grid can fit within the maze bounds
+bool isValidMove(int row, int col) {
+  // Check that the robot's 5x5 grid does not go out of bounds and isn't a wall
+  if (row < 0 || row + 4 >= N1 || col < 0 || col + 4 >= N2) {
+    return false;  // Robot's 5x5 grid exceeds maze boundaries
+  }
+
+  // Check that all parts of the robot (5x5 area) are free space (not walls)
+  for (int r = row; r < row + 5; r++) {
+    for (int c = col; c < col + 5; c++) {
+      if (maze[r][c] == 2) {  // Wall
+        return false;
       }
     }
-    Serial.println();
   }
-  Serial.println();
+
+  return true;  // Valid move
+}
+
+// Check if the robot's 5x5 grid has reached the destination
+bool isAtDestination(int row, int col, int endRow, int endCol) {
+  // The robot's 5x5 grid should cover the destination (endRow, endCol)
+  // The robot will be considered at the destination if its bottom-right corner
+  // (row + 4, col + 4) matches the destination.
+  if (row + 4 == endRow && col + 4 == endCol) {
+    return true;  // The robot's bottom-right corner is at the destination
+  }
+  return false;
 }
 
 void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<std::pair<int, int>>& path) {
@@ -437,9 +500,9 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   std::priority_queue<Cell, std::vector<Cell>, std::greater<Cell>> pq;
 
   // Distance array, initialized to INF
-  int dist[N][N];
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
+  int dist[N1][N2];
+  for (int i = 0; i < N1; i++) {
+    for (int j = 0; j < N2; j++) {
       dist[i][j] = INF;
     }
   }
@@ -448,21 +511,47 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   // Start with the source cell
   pq.push({ startRow, startCol, 0 });
 
+  // Debug: Print the start and end coordinates to ensure they are correct
+  Serial.print("Start position: ");
+  Serial.print(startRow);
+  Serial.print(", ");
+  Serial.println(startCol);
+  Serial.print("End position: ");
+  Serial.print(endRow);
+  Serial.print(", ");
+  Serial.println(endCol);
+
   while (!pq.empty()) {
     Cell curr = pq.top();
     pq.pop();
 
     int row = curr.row;
     int col = curr.col;
+    int currDist = dist[row][col];
 
-    // If we reach the destination, construct the path
-    if (row == endRow && col == endCol) {
+    // Debug: Print the current cell being processed
+    Serial.print("Processing cell: ");
+    Serial.print(row);
+    Serial.print(", ");
+    Serial.println(col);
+
+    // Check if the robot's 5x5 grid is at the destination
+    if (isAtDestination(row, col, endRow, endCol)) {
+      // Debug: Print when destination is found
+      Serial.print("Found destination: ");
+      Serial.print(row);
+      Serial.print(", ");
+      Serial.println(col);
+
       path.push_back({ row, col });
+
+      // Reconstruct the path by backtracking from the destination
       while (row != startRow || col != startCol) {
         for (int i = 0; i < 4; i++) {
           int newRow = row + dRow[i];
           int newCol = col + dCol[i];
-          if (newRow >= 0 && newRow < N && newCol >= 0 && newCol < N && dist[newRow][newCol] == dist[row][col] - 1) {
+          // Ensure that we are not going out of bounds and the distance is correct
+          if (newRow >= 0 && newRow < N1 && newCol >= 0 && newCol < N2 && dist[newRow][newCol] == dist[row][col] - 1) {
             path.push_back({ newRow, newCol });
             row = newRow;
             col = newCol;
@@ -470,7 +559,21 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
           }
         }
       }
+
+      // Reverse the path so it goes from start to end
       std::reverse(path.begin(), path.end());
+
+      // Print the full path from start to end
+      Serial.println("Path from start to end:");
+      for (size_t i = 0; i < path.size(); i++) {
+        Serial.print("Step ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.print(path[i].first);
+        Serial.print(", ");
+        Serial.println(path[i].second);
+      }
+
       return;
     }
 
@@ -479,9 +582,9 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
       int newRow = row + dRow[i];
       int newCol = col + dCol[i];
 
-      // Check if the neighbor is within bounds and is a free space (1)
-      if (newRow >= 0 && newRow < N && newCol >= 0 && newCol < N && maze[newRow][newCol] != 2) {
-        int newDist = dist[row][col] + 1;  // Each move costs 1 step
+      // Only process the neighbor if it's a valid move
+      if (isValidMove(newRow, newCol)) {
+        int newDist = currDist + 1;  // Each move costs 1 step
 
         // If a shorter path is found, update the distance and push to the queue
         if (newDist < dist[newRow][newCol]) {
@@ -496,18 +599,46 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   Serial.println("No path found!");
 }
 
+// Debugging path movement
 void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) {
   if (currentIdx < path.size()) {
     int row = path[currentIdx].first;
     int col = path[currentIdx].second;
 
-    // Update the maze to show robot's position
-    maze[row][col] = 3;
+    // Update the maze to show robot's position as a 5x5 block
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        int robotRow = row + i;
+        int robotCol = col + j;
+        // Ensure the robot fits within the maze and the block is marked
+        if (robotRow < N1 && robotCol < N2) {
+          maze[robotRow][robotCol] = 3;  // Robot's 5x5 block
+        }
+      }
+    }
+
     PrintMaze();
     delay(500);  // Slow down the movement for visibility
 
+    // Clear the previous position of the robot (optional, to make movement clearer)
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        int robotRow = row + i;
+        int robotCol = col + j;
+        if (robotRow < N1 && robotCol < N2 && maze[robotRow][robotCol] == 3) {
+          maze[robotRow][robotCol] = 1;  // Reset the position back to free space
+        }
+      }
+    }
+
     currentIdx++;  // Move to the next step in the path
   }
+
+  // Debug: Print the current position
+  Serial.print("Robot is at: ");
+  Serial.print(path[currentIdx - 1].first);
+  Serial.print(", ");
+  Serial.println(path[currentIdx - 1].second);
 }
 
 void ResetEncoder() {
