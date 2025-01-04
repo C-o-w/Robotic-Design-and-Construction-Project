@@ -1,14 +1,11 @@
 // Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 178-199)
-
-/* KNOWN BUGS
- Command inputting breaks with some colon errors
- Bluetooth disconnects 11 seconds after a message is sent from terminal, doesnt reset device just disconnects so you can reconnect easily.
-*/
+// Debug and DebugLn also included, 0 for regular debug, 1 for verbose debug
 
 
 #include <Arduino.h>
 #include <queue>
 #include <vector>
+#include <math.h>
 
 #include <TB6612FNG.h>        //Motor controller library https://github.com/vincasmiliunas/ESP32-Arduino-TB6612FNG/blob/master/examples/TwoMotors/TwoMotors.ino
 #include <BluetoothSerial.h>  //ESP32 bluetooth library https://github.com/espressif/arduino-esp32/tree/master/libraries/BluetoothSerial/examples
@@ -81,7 +78,15 @@ int RightCounter = 0;
 int RightState;
 int RightLastState;
 
-int DistanceTravelled;
+int DistanceTravelled = 0;
+int DistanceOffsetX = 0;
+int DistanceOffsetY = 0;
+String MoveAxis = "X";
+
+int WheelDiameter = 1;
+float WheelCircumference = 0;  //Calculated in setup
+int CountsPerRotation = 600;
+int EncoderDifference;
 
 //Command Setup
 String InputCommand;                //Full command inputted
@@ -205,8 +210,7 @@ void setup() {
   pinMode(EncoderY.PIN, INPUT_PULLUP);
   attachInterrupt(EncoderY.PIN, EncoderYInterrupt, FALLING);
 
-
-
+  WheelCircumference = WheelDiameter * M_PI;
 
   motors.begin();                //Begins the motor object
   Serial.begin(9600);            //Serial began at a baud rate of 9600, baud rate doesnt matter particularly but must match on the terminal
@@ -394,7 +398,7 @@ void Debug(String Message, int Verbose) {  //Used to send outputs over both seri
   }
 }
 
-void DebugLn(String MessageLn, char Verbose) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
+void DebugLn(String MessageLn, int Verbose) {  //Used to send outputs over both serial and IR, used to make other sections cleaner
   if (DebugEnabled == 1) {
     if (Verbose == 1) {
       if (VerboseEnabled == 1) {
@@ -465,8 +469,8 @@ void SolveMaze() {
   }
 }
 
-// Check if the robot's 5x5 grid can fit within the maze bounds
-bool isValidMove(int row, int col) {
+bool isValidMove(int row, int col) { // Check if the robot's 5x5 grid can fit within the maze bounds
+
   // Check that the robot's 5x5 grid does not go out of bounds and isn't a wall
   if (row < 0 || row + 4 >= N1 || col < 0 || col + 4 >= N2) {
     return false;  // Robot's 5x5 grid exceeds maze boundaries
@@ -484,8 +488,8 @@ bool isValidMove(int row, int col) {
   return true;  // Valid move
 }
 
-// Check if the robot's 5x5 grid has reached the destination
-bool isAtDestination(int row, int col, int endRow, int endCol) {
+bool isAtDestination(int row, int col, int endRow, int endCol) { // Check if the robot's 5x5 grid has reached the destination
+
   // The robot's 5x5 grid should cover the destination (endRow, endCol)
   // The robot will be considered at the destination if its bottom-right corner
   // (row + 4, col + 4) matches the destination.
@@ -599,8 +603,8 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   Serial.println("No path found!");
 }
 
-// Debugging path movement
-void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) {
+void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) { // Debugging path movement
+
   if (currentIdx < path.size()) {
     int row = path[currentIdx].first;
     int col = path[currentIdx].second;
@@ -661,9 +665,7 @@ void MoveSpace(int Distance) {  //Not set up with correct values, needs to be te
   PrintMessageLn("Moving Fowards");
   Forwards(0.2, -0.195);
   Encoder(Distance);
-  Brake(); /*
-  MovementList[MovementCounter] = 'A';
-  MovementCounter = MovementCounter + 1; */
+  Brake();
 }
 
 void TurnLeft() {
@@ -766,6 +768,22 @@ void IsWallRight() {  //Checks for wall to the right
   }
 }
 
-void Encoder(int TargetDistance) {  //DOESNT WORK YET
-  delay(TargetDistance);
+void Encoder(int TargetDistance) {
+  if (MoveAxis == "x") {  //Use an offset to adjust for overshooting the encoder distance
+    DistanceTravelled = 0 - DistanceOffsetX;
+  } else if (MoveAxis == "Y") {
+    DistanceTravelled = 0 - DistanceOffsetY;
+  } else {
+    DistanceTravelled = 0;
+  };
+
+  LeftCounter = 0;
+  RightCounter = 0;
+
+  while (DistanceTravelled < TargetDistance) {
+    Debug("Difference between encoders:", 0);
+    EncoderDifference = (LeftCounter - RightCounter);
+    DebugLn(String(EncoderDifference), 0);
+    DistanceTravelled = int(((LeftCounter + RightCounter) / 2) * WheelCircumference / CountsPerRotation);  //Update distance travelled based on the average rotations per encoder
+  };
 }
