@@ -111,6 +111,7 @@ char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
 #define N1 40       // Size of the maze (20x20) ROW
 #define N2 40       //                          COL
 #define INF 999999  // Infinity, representing unvisited cells
+int CellSize = 4; //Size of one cell in MM
 
 // Directions for moving in the maze (up, down, left, right)
 int dRow[] = { -1, 1, 0, 0 };  // Row direction for up and down
@@ -197,6 +198,14 @@ void IRAM_ATTR EncoderYInterrupt() {
   EncoderY.numberRotation += 1;
   EncoderY.triggered = true;
 }
+
+enum Direction { NORTH,
+                 EAST,
+                 SOUTH,
+                 WEST };
+Direction currentDirection = NORTH;  // Initial orientation of the robot
+
+void RotateTo(Direction targetDirection); // Running into compilation error, declaring a function prototype fixed them
 
 void setup() {
   pinMode(trigPin1, OUTPUT);  // Sets the trigPin as an Output
@@ -426,6 +435,15 @@ void DebugLn(String MessageLn, int Verbose) {  //Used to send outputs over both 
   }
 }
 
+void InitializeMaze() {
+
+  for (int i = 0; i < N1; i++) {
+    for (int j = 0; j < N2; j++) {
+      maze[i][j] = 1;  // Initialize all maze cells as free space
+    }
+  }
+}
+
 void PrintMaze() {
   for (int i = 0; i < N1; i++) {
     for (int j = 0; j < N2; j++) {
@@ -469,7 +487,7 @@ void SolveMaze() {
   }
 }
 
-bool isValidMove(int row, int col) { // Check if the robot's 5x5 grid can fit within the maze bounds
+bool isValidMove(int row, int col) {  // Check if the robot's 5x5 grid can fit within the maze bounds
 
   // Check that the robot's 5x5 grid does not go out of bounds and isn't a wall
   if (row < 0 || row + 4 >= N1 || col < 0 || col + 4 >= N2) {
@@ -488,7 +506,7 @@ bool isValidMove(int row, int col) { // Check if the robot's 5x5 grid can fit wi
   return true;  // Valid move
 }
 
-bool isAtDestination(int row, int col, int endRow, int endCol) { // Check if the robot's 5x5 grid has reached the destination
+bool isAtDestination(int row, int col, int endRow, int endCol) {  // Check if the robot's 5x5 grid has reached the destination
 
   // The robot's 5x5 grid should cover the destination (endRow, endCol)
   // The robot will be considered at the destination if its bottom-right corner
@@ -603,18 +621,31 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
   Serial.println("No path found!");
 }
 
-void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) { // Debugging path movement
+void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) {
+  if (currentIdx < path.size() - 1) {
+    int currentRow = path[currentIdx].first;
+    int currentCol = path[currentIdx].second;
+    int nextRow = path[currentIdx + 1].first;
+    int nextCol = path[currentIdx + 1].second;
 
-  if (currentIdx < path.size()) {
-    int row = path[currentIdx].first;
-    int col = path[currentIdx].second;
+    // Determine the direction to move
+    if (nextRow == currentRow - 1 && nextCol == currentCol) {
+      RotateTo(NORTH);  // Move up
+    } else if (nextRow == currentRow + 1 && nextCol == currentCol) {
+      RotateTo(SOUTH);  // Move down
+    } else if (nextRow == currentRow && nextCol == currentCol + 1) {
+      RotateTo(EAST);  // Move right
+    } else if (nextRow == currentRow && nextCol == currentCol - 1) {
+      RotateTo(WEST);  // Move left
+    }
+
+    MoveSpace();  // Move to the next space
 
     // Update the maze to show robot's position as a 5x5 block
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
-        int robotRow = row + i;
-        int robotCol = col + j;
-        // Ensure the robot fits within the maze and the block is marked
+        int robotRow = nextRow + i;
+        int robotCol = nextCol + j;
         if (robotRow < N1 && robotCol < N2) {
           maze[robotRow][robotCol] = 3;  // Robot's 5x5 block
         }
@@ -627,8 +658,8 @@ void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) { // 
     // Clear the previous position of the robot (optional, to make movement clearer)
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
-        int robotRow = row + i;
-        int robotCol = col + j;
+        int robotRow = currentRow + i;
+        int robotCol = currentCol + j;
         if (robotRow < N1 && robotCol < N2 && maze[robotRow][robotCol] == 3) {
           maze[robotRow][robotCol] = 1;  // Reset the position back to free space
         }
@@ -636,13 +667,13 @@ void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) { // 
     }
 
     currentIdx++;  // Move to the next step in the path
-  }
 
-  // Debug: Print the current position
-  Serial.print("Robot is at: ");
-  Serial.print(path[currentIdx - 1].first);
-  Serial.print(", ");
-  Serial.println(path[currentIdx - 1].second);
+    // Debug: Print the current position
+    Serial.print("Robot moved to: ");
+    Serial.print(nextRow);
+    Serial.print(", ");
+    Serial.println(nextCol);
+  }
 }
 
 void ResetEncoder() {
@@ -661,10 +692,10 @@ void PollSensor() {  //Checks the sensors and adds the values to the IR storage 
   RightLastState = digitalRead(RightOutputA);
 }
 
-void MoveSpace(int Distance) {  //Not set up with correct values, needs to be tested, currently just set up to go based on a timer, ideally would use an encoder (code for which is below)
+void MoveSpace() {  //Not set up with correct values, needs to be tested, currently just set up to go based on a timer, ideally would use an encoder (code for which is below)
   PrintMessageLn("Moving Fowards");
   Forwards(0.2, -0.195);
-  Encoder(Distance);
+  Encoder(CellSize);
   Brake();
 }
 
@@ -676,6 +707,7 @@ void TurnLeft() {
   Brake();
   MovementList[MovementCounter] = 'B';
   MovementCounter = MovementCounter + 1;
+  currentDirection = static_cast<Direction>((currentDirection + 3) % 4);
 }
 
 void TurnRight() {
@@ -686,11 +718,22 @@ void TurnRight() {
   Brake();
   MovementList[MovementCounter] = 'C';
   MovementCounter = MovementCounter + 1;
+  currentDirection = static_cast<Direction>((currentDirection + 3) % 4);
 }
 
 void TurnBack() {
   TurnLeft();
   TurnLeft();
+}
+
+void RotateTo(Direction targetDirection) {
+  while (currentDirection != targetDirection) {
+    if ((currentDirection + 1) % 4 == targetDirection) {
+      TurnRight();
+    } else {
+      TurnLeft();
+    }
+  }
 }
 
 void Forwards(float x, float y) {  //Command to run both motors based on the input, can be called from terminal (Forwards:x:y)
