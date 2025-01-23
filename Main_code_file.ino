@@ -22,6 +22,11 @@
 #error Serial Bluetooth not available or not enabled. It is only available for the ESP32 chip.
 #endif
 
+#include <Wire.h>
+
+#define TCA9548A_ADDR 0x70  // Address of the multiplexer
+#define SENSOR_ADDR 0x40    // Address of the Sharp GP2Y0E02B sensor
+
 //Creation of the bluetooth object
 BluetoothSerial SerialBT;
 
@@ -191,19 +196,33 @@ void setup() {
 
   WheelCircumference = WheelDiameter * M_PI;
 
+  Wire.begin();
   motors.begin();                //Begins the motor object
   Serial.begin(9600);            //Serial began at a baud rate of 9600, baud rate doesnt matter particularly but must match on the terminal
   SerialBT.begin("MicroMouse");  //Bluetooth device name
   PrintMessageLn("Setup Complete");
   delay(100);
-
   InitializeMaze();
   PrintMessageLn("Maze Initialized");
 }
 
 void loop() {  //Just encoder counting and checking for commands, all maze solving is controlled by FollowLeft and SolveMaze, controlled by commands FollowLeft:: and SolveMaze::
   CheckCommand();
-
+  PollSensor();
+  //PrintSensor();
+  PrintMessage(String(CurrentX));
+  PrintMessage(" : ");
+  PrintMessageLn(String(CurrentY));
+  for (int i = 0; i < 3; i++) {
+    Serial.print("Distance at channel ");
+    Serial.print(i + 1);
+    Serial.print(": ");
+    Serial.print(DistanceValues[i]);
+    Serial.println(" mm");
+  }
+  FindWall();
+  PrintMaze();
+  MoveSpace();
   if (EncoderX.triggered) {
     DebugLn("Encoder X has triggered: ", 1);
     DebugLn(String(EncoderX.numberRotation), 1);
@@ -215,8 +234,6 @@ void loop() {  //Just encoder counting and checking for commands, all maze solvi
     DebugLn(String(EncoderY.numberRotation), 1);
     EncoderY.triggered = false;
   }
-
-  PrintSensors();
 
   delay(100);
 }
@@ -668,9 +685,12 @@ void ResetEncoder() {  //Sets the encoders to zero, used later
 }
 
 void PollSensor() {  //Checks the sensors and adds the values to the IR storage array
+  /*
   CheckUltrasonicSensor0();
   CheckUltrasonicSensor1();
   CheckUltrasonicSensor2();
+  */
+  IrLoop();
 }
 
 void MoveSpace() {  //Not set up with correct values, needs to be tested, currently just set up to go based on a timer, ideally would use an encoder (code for which is below)
@@ -833,38 +853,55 @@ void PlaceWall(Direction wallDirection, int wallDistance) {  //Places walls for 
   if (wallDirection == NORTH) {
     if (CurrentX - (wallDistance / CellSize)) {
       maze[CurrentX - (wallDistance / CellSize)][CurrentY] = 2;
+      Serial.print("Wall placed at: ");
+      Serial.print(String(CurrentX - (wallDistance / CellSize)));
+      Serial.print(" , ");
+      Serial.println(String(CurrentY));
     }
   }
 
   if (wallDirection == EAST) {
     if (CurrentX - (wallDistance / CellSize)) {
       maze[CurrentX][CurrentY + (wallDistance / CellSize)] = 2;
+      Serial.print("Wall placed at: ");
+      Serial.print(String(CurrentX));
+      Serial.print(" , ");
+      Serial.println(String(CurrentY + (wallDistance / CellSize)));
     }
   }
 
   if (wallDirection == SOUTH) {
     if (CurrentX - (wallDistance / CellSize)) {
       maze[CurrentX + (wallDistance / CellSize)][CurrentY] = 2;
+      Serial.print("Wall placed at: ");
+      Serial.print(String(CurrentX + (wallDistance / CellSize)));
+      Serial.print(" , ");
+      Serial.println(String(CurrentY));
     }
   }
 
   if (wallDirection == WEST) {
     if (CurrentX - (wallDistance / CellSize)) {
       maze[CurrentX][CurrentY - (wallDistance / CellSize)] = 2;
+      Serial.print("Wall placed at: ");
+      Serial.print(String(CurrentX));
+      Serial.print(" , ");
+      Serial.println(String(CurrentY - (wallDistance / CellSize)));
     }
   }
 }
 
 void UpdateLocation() {  //Updates current position
+  DebugLn(String(currentDirection), 0);
   if (currentDirection == NORTH) {
-    if (CurrentX > 0) {
-      CurrentX = CurrentX - 1;
+    if (CurrentX >= 0) {
+      CurrentX = CurrentX + 1;
     }
   }
 
   if (currentDirection == EAST) {
-    if (CurrentY > 0) {
-      CurrentY = CurrentY - 1;
+    if (CurrentY >= 0) {
+      CurrentY = CurrentY + 1;
     }
   }
 
@@ -881,7 +918,7 @@ void UpdateLocation() {  //Updates current position
   }
 }
 
-void Encoder(int TargetDistance) { //Similar to a wait function, delays the function until the distance is met
+void Encoder(int TargetDistance) {  //Similar to a wait function, delays the function until the distance is met
 
   ResetDistance();
   ResetEncoder();
@@ -924,7 +961,7 @@ void Encoder(int TargetDistance) { //Similar to a wait function, delays the func
   ResetDistance();
 }
 
-void ResetDistance() { //Resets the encoder distances
+void ResetDistance() {  //Resets the encoder distances
   DistanceTravelled = 0;
   LeftCounter = 0;
   RightCounter = 0;
@@ -951,7 +988,7 @@ void FollowLeft() {  //Solve using follow left wall
   PrintMessageLn("Maze Solved :)");
 }
 
-void PrintSensors() { //Prints the values from the sensors, for debug
+void PrintSensors() {  //Prints the values from the sensors, for debug
   PollSensor();
   FindWall();
   PrintMessage("Sensor 1: ");
@@ -960,4 +997,90 @@ void PrintSensors() { //Prints the values from the sensors, for debug
   PrintMessage(String(DistanceValues[1]));
   PrintMessage("Sensor 3: ");
   PrintMessageLn(String(DistanceValues[2]));
+}
+
+void IrLoop() {
+  for (uint8_t channel = 1; channel <= 3; channel++) {
+    resetMultiplexer();  // Reset multiplexer to avoid residual channel interference
+    selectChannel(channel);
+    delay(100);
+
+    // Debugging: Scan for active devices
+    // scanI2C();
+
+    // Read sensor data
+    int distance = readDistance() / 100;
+    if (distance != -1) {
+      /*Serial.print("Distance at channel ");
+      Serial.print(channel);
+      Serial.print(": ");
+      Serial.print(distance);
+      Serial.println(" mm");*/
+      DistanceValues[(channel - 1)] = distance;
+    }
+  }
+}
+
+void selectChannel(uint8_t channel) {
+  if (channel > 7) {
+    Serial.println("Invalid channel selected!");
+    return;
+  }
+  Wire.beginTransmission(TCA9548A_ADDR);
+  Wire.write(1 << channel);  // Select the desired channel
+  if (Wire.endTransmission() == 0) {
+    Serial.print("Channel ");
+    Serial.print(channel);
+    Serial.println(" selected.");
+  } else {
+    Serial.println("Error selecting channel.");
+  }
+  delay(200);  // Stabilization delay
+}
+
+int readDistance() {
+  // Write the register address
+  Wire.beginTransmission(SENSOR_ADDR);
+  Wire.write(0x5E);  // Register for distance
+  if (Wire.endTransmission() != 0) {
+    Serial.println("Error writing to sensor.");
+    return -1;
+  }
+
+  delay(10);  // Allow sensor to prepare data
+
+  // Request 2 bytes
+  Wire.requestFrom(SENSOR_ADDR, 2);
+  if (Wire.available() == 2) {
+    int msb = Wire.read();
+    int lsb = Wire.read();
+    Serial.print("Raw Data: MSB=0x");
+    Serial.print(msb, HEX);
+    Serial.print(", LSB=0x");
+    Serial.println(lsb, HEX);
+
+    return (msb << 8) | lsb;
+  } else {
+    Serial.println("Error reading sensor data.");
+    return -1;
+  }
+}
+
+void scanI2C() {
+  Serial.println("Scanning I2C bus...");
+  for (uint8_t address = 1; address < 127; ++address) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      Serial.print("Found device at 0x");
+      Serial.println(address, HEX);
+    }
+  }
+  Serial.println("Scan complete.");
+}
+
+void resetMultiplexer() {
+  Wire.beginTransmission(TCA9548A_ADDR);
+  Wire.write(0x00);  // Disable all channels
+  Wire.endTransmission();
+  delay(100);  // Allow time to reset
 }
