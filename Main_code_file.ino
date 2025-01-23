@@ -1,5 +1,9 @@
-// Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 178-199)
+// Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 332-407)
 // Debug and DebugLn also included, 0 for regular debug, 1 for verbose debug
+
+
+// USES ESP32 VERSION 2.0.17, WILL REQUIRE A ROLLBACK IN THE BOARDS MANAGER. THIS WAS DUE TO THE LIBRARY FOR THE MOTOR CONTROLLER NOT BEING UPDATED, AND NO SUTABLE REPLACEMENT BEING FOUND
+// https://github.com/espressif/arduino-esp32
 
 #include <Arduino.h>
 #include <queue>
@@ -32,6 +36,7 @@ const int trigPin1 = 4;
 const int echoPin1 = 5;
 const int trigPin2 = 18;
 const int echoPin2 = 19;
+
 // defines variables
 long duration;
 int distance;
@@ -74,17 +79,19 @@ int LeftCounter = 0;
 
 int RightCounter = 0;
 
-int DistanceTravelled = 0;
+volatile int DistanceTravelled = 0;
 int DistanceOffsetX = 0;
 int DistanceOffsetY = 0;
 String MoveAxis = "X";
 
 int WheelDiameter = 47;        //In mm
 float WheelCircumference = 0;  //Calculated in setup
-int CountsPerRotation = 60;
+int CountsPerRotation = 260;
 int EncoderDifference;
 
 int WheelGap = 89;  //In mm
+
+bool Turning = false;
 
 //Command Setup
 String InputCommand;                //Full command inputted
@@ -139,9 +146,9 @@ struct Cell {
 };
 
 struct encoder {  //define encoder construct
-  const uint8_t PIN;
-  uint32_t numberRotation;
-  bool triggered;
+  volatile const uint8_t PIN;
+  volatile uint32_t numberRotation;
+  volatile bool triggered;
 };
 
 encoder EncoderX = { RightOutputB, 0, false };  //create encoder instance
@@ -194,7 +201,7 @@ void setup() {
   PrintMessageLn("Maze Initialized");
 }
 
-void loop() { //Just encoder counting and checking for commands, all maze solving is controlled by FollowLeft and SolveMaze, controlled by commands FollowLeft:: and SolveMaze::
+void loop() {  //Just encoder counting and checking for commands, all maze solving is controlled by FollowLeft and SolveMaze, controlled by commands FollowLeft:: and SolveMaze::
   CheckCommand();
 
   if (EncoderX.triggered) {
@@ -208,6 +215,8 @@ void loop() { //Just encoder counting and checking for commands, all maze solvin
     DebugLn(String(EncoderY.numberRotation), 1);
     EncoderY.triggered = false;
   }
+
+  PrintSensors();
 
   delay(100);
 }
@@ -321,6 +330,16 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
   } else if (CurrentCommand == "FollowLeft" || CurrentCommand == "followleft" || CurrentCommand == "Followleft" || CurrentCommand == "followLeft") {
     DebugLn("Following Left", 0);
     FollowLeft();
+  } else if (CurrentCommand == "TestTurn" || CurrentCommand == "testturn" || CurrentCommand == "testTurn" || CurrentCommand == "Testturn") {
+    TurnLeft();
+  } else if (CurrentCommand == "TestMove" || CurrentCommand == "testmove" || CurrentCommand == "testMove" || CurrentCommand == "Testmove") {
+    CommandIntA = CommandInputA.toInt();
+    CountsPerRotation = CommandIntA;
+    PrintMessageLn("Moving Fowards");
+    Forwards(0.3, 0.3);
+    Encoder(100);
+    UpdateLocation();
+    Brake();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -456,7 +475,7 @@ void SolveMaze() {  // Run Dijkstra to solve the maze and get the path
   }
 }
 
-bool isValidMove(int row, int col) {  // Check if the robot's 5x5 grid can fit within the maze bounds
+bool IsValidMove(int row, int col) {  // Check if the robot's 5x5 grid can fit within the maze bounds
 
   // Check that the robot's 5x5 grid does not go out of bounds and isn't a wall
   if (row < 0 || row + 4 >= N1 || col < 0 || col + 4 >= N2) {
@@ -475,7 +494,7 @@ bool isValidMove(int row, int col) {  // Check if the robot's 5x5 grid can fit w
   return true;  // Valid move :)
 }
 
-bool isAtDestination(int row, int col, int endRow, int endCol) {  // Check if the robot's 5x5 grid has reached the destination
+bool IsAtDestination(int row, int col, int endRow, int endCol) {  // Check if the robot's 5x5 grid has reached the destination
 
   // The robot's 5x5 grid should cover the destination (endRow, endCol), it will be considered at destination if its bottom-right corner
   // (row + 4, col + 4) matches the destination, fixes for larger area
@@ -525,7 +544,7 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
     DebugLn(String(col), 1);
 
     // Check if the robot's 5x5 grid is at the destination
-    if (isAtDestination(row, col, endRow, endCol)) {
+    if (IsAtDestination(row, col, endRow, endCol)) {
       // Print when destination is found
       Debug("Found destination: ", 0);
       Debug(String(row), 0);
@@ -572,7 +591,7 @@ void Dijkstra(int startRow, int startCol, int endRow, int endCol, std::vector<st
       int newCol = col + dCol[i];
 
       // Only process the neighbor if it's a valid move
-      if (isValidMove(newRow, newCol)) {
+      if (IsValidMove(newRow, newCol)) {
         int newDist = currDist + 1;  // Each move costs 1 step
 
         // If a shorter path is found, update the distance and push to the queue
@@ -663,6 +682,7 @@ void MoveSpace() {  //Not set up with correct values, needs to be tested, curren
 }
 
 void TurnLeft() {  //Turns left
+  Turning = true;
   PrintMessageLn("Turning Left");
   Forwards(-0.2, 0.2);
   Encoder(WheelGap);
@@ -670,9 +690,11 @@ void TurnLeft() {  //Turns left
   MovementList[MovementCounter] = 'B';
   MovementCounter = MovementCounter + 1;
   currentDirection = static_cast<Direction>((currentDirection + 3) % 4);  // Decrementing direction and wrapping, subtracting didnt work, but adding 3 and wrapping works
+  Turning = false;
 }
 
 void TurnRight() {  //Turns right
+  Turning = true;
   PrintMessageLn("Turning Right");
   Forwards(0.2, -0.2);
   Encoder(WheelGap);
@@ -680,6 +702,7 @@ void TurnRight() {  //Turns right
   MovementList[MovementCounter] = 'C';
   MovementCounter = MovementCounter + 1;
   currentDirection = static_cast<Direction>((currentDirection + 1) % 4);  // Incrementing direction and wrapping, wrapping fixes directions "after" west
+  Turning = false;
 }
 
 void TurnBack() {  //Turns left twice
@@ -858,28 +881,57 @@ void UpdateLocation() {  //Updates current position
   }
 }
 
-void Encoder(int TargetDistance) {  //Functions as a delay, waiting til the target distance is achieved
-  if (MoveAxis == "x") {            //Use an offset to adjust for overshooting the encoder distance
-    DistanceTravelled = 0 - DistanceOffsetX;
-  } else if (MoveAxis == "Y") {
-    DistanceTravelled = 0 - DistanceOffsetY;
-  } else {
-    DistanceTravelled = 0;
-  };
+void Encoder(int TargetDistance) { //Similar to a wait function, delays the function until the distance is met
 
-  LeftCounter = 0;
-  RightCounter = 0;
+  ResetDistance();
+  ResetEncoder();
 
   while (DistanceTravelled < TargetDistance) {
+    // Update distance traveled
+    DistanceTravelled = int(((LeftCounter + RightCounter) / 2) * WheelCircumference / CountsPerRotation);
+
+    // Print debug information
+    Debug("LeftCounter: ", 1);
+    Debug(String(LeftCounter), 1);
+    Debug("RightCounter: ", 1);
+    Debug(String(RightCounter), 1);
+    Debug("DistanceTravelled", 1);
+    DebugLn(String(DistanceTravelled), 1);
+
+    if (!Turning) {
+      FindWall();
+    }
+
+    // Check for encoder updates
+    noInterrupts();  // Temporarily disable interrupts to safely read shared data
+    uint32_t leftCount = EncoderX.numberRotation;
+    uint32_t rightCount = EncoderY.numberRotation;
+    interrupts();  // Re-enable interrupts
+
+    // Update counters
+    LeftCounter = leftCount;
+    RightCounter = rightCount;
+
+    // Calculate encoder difference
+    EncoderDifference = LeftCounter - RightCounter;
     Debug("Difference between encoders:", 0);
-    EncoderDifference = (LeftCounter - RightCounter);
     DebugLn(String(EncoderDifference), 0);
-    DistanceTravelled = int(((LeftCounter + RightCounter) / 2) * WheelCircumference / CountsPerRotation);  //Update distance travelled based on the average rotations per encoder
-  };
+
+    // Allow other tasks to run
+    vTaskDelay(10 / portTICK_PERIOD_MS);  // FreeRTOS delay for multitasking
+  }
+
+  ResetDistance();
 }
 
-void FollowLeft() { //Solve using follow left wall
-  while (isAtDestination(CurrentX, CurrentY, endRow, endCol) == false) {
+void ResetDistance() { //Resets the encoder distances
+  DistanceTravelled = 0;
+  LeftCounter = 0;
+  RightCounter = 0;
+}
+
+void FollowLeft() {  //Solve using follow left wall
+  while (IsAtDestination(CurrentX, CurrentY, endRow, endCol) == false) {
     FindWall();
     if (WallLeft == 0) {
       TurnLeft();
@@ -897,4 +949,15 @@ void FollowLeft() { //Solve using follow left wall
     }
   }
   PrintMessageLn("Maze Solved :)");
+}
+
+void PrintSensors() { //Prints the values from the sensors, for debug
+  PollSensor();
+  FindWall();
+  PrintMessage("Sensor 1: ");
+  PrintMessage(String(DistanceValues[0]));
+  PrintMessage("Sensor 2: ");
+  PrintMessage(String(DistanceValues[1]));
+  PrintMessage("Sensor 3: ");
+  PrintMessageLn(String(DistanceValues[2]));
 }
