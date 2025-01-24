@@ -223,6 +223,7 @@ void loop() {  //Just encoder counting and checking for commands, all maze solvi
   FindWall();
   PrintMaze();
   MoveSpace();
+
   if (EncoderX.triggered) {
     DebugLn("Encoder X has triggered: ", 1);
     DebugLn(String(EncoderX.numberRotation), 1);
@@ -444,7 +445,7 @@ void InitializeMaze() {  //Sets the maze as all empty spaces
 
   for (int i = 0; i < N1; i++) {
     for (int j = 0; j < N2; j++) {
-      maze[i][j] = 1;  // Initialize all maze cells as free space
+      maze[i][j] = 0;  // Initialize all maze cells as unknown space
     }
   }
 }
@@ -849,47 +850,91 @@ void IsWallRight() {  //Checks for wall to the right
   }
 }
 
-void PlaceWall(Direction wallDirection, int wallDistance) {  //Places walls for mapping function, called when MoveSpace is used
-  if (wallDirection == NORTH) {
-    if (CurrentX - (wallDistance / CellSize)) {
-      maze[CurrentX - (wallDistance / CellSize)][CurrentY] = 2;
-      Serial.print("Wall placed at: ");
-      Serial.print(String(CurrentX - (wallDistance / CellSize)));
-      Serial.print(" , ");
-      Serial.println(String(CurrentY));
-    }
-  }
+void PlaceWall(Direction wallDirection, int wallDistance) {
+  int wallCellDistance = wallDistance / CellSize;
 
-  if (wallDirection == EAST) {
-    if (CurrentX - (wallDistance / CellSize)) {
-      maze[CurrentX][CurrentY + (wallDistance / CellSize)] = 2;
-      Serial.print("Wall placed at: ");
-      Serial.print(String(CurrentX));
-      Serial.print(" , ");
-      Serial.println(String(CurrentY + (wallDistance / CellSize)));
+  if (wallDirection == NORTH) {
+    for (int i = 1; i <= wallCellDistance; i++) {
+      if (CurrentX + i > 0) {
+        if (i == wallCellDistance) {
+          maze[CurrentX + i][CurrentY] = 2;  // Wall
+          Serial.print("Wall placed at: ");
+          Serial.print(CurrentX + i);
+          Serial.print(", ");
+          Serial.println(CurrentY);
+        } else {
+          maze[CurrentX + i][CurrentY] = 1;  // Free space
+          Serial.print("Free space at: ");
+          Serial.print(CurrentX + i);
+          Serial.print(", ");
+          Serial.println(CurrentY);
+        }
+      }
     }
   }
 
   if (wallDirection == SOUTH) {
-    if (CurrentX - (wallDistance / CellSize)) {
-      maze[CurrentX + (wallDistance / CellSize)][CurrentY] = 2;
-      Serial.print("Wall placed at: ");
-      Serial.print(String(CurrentX + (wallDistance / CellSize)));
-      Serial.print(" , ");
-      Serial.println(String(CurrentY));
+    for (int i = 1; i <= wallCellDistance; i++) {
+      if (CurrentX - i > 0) {
+        if (i == wallCellDistance) {
+          maze[CurrentX - i][CurrentY] = 2;  // Wall
+          Serial.print("Wall placed at: ");
+          Serial.print(CurrentX - i);
+          Serial.print(", ");
+          Serial.println(CurrentY);
+        } else {
+          maze[CurrentX - i][CurrentY] = 1;  // Free space
+          Serial.print("Free space at: ");
+          Serial.print(CurrentX - i);
+          Serial.print(", ");
+          Serial.println(CurrentY);
+        }
+      }
+    }
+  }
+
+  if (wallDirection == EAST) {
+    for (int i = 1; i <= wallCellDistance; i++) {
+      if (CurrentY + i > 0) {
+        if (i == wallCellDistance) {
+          maze[CurrentX][CurrentY + i] = 2;  // Wall
+          Serial.print("Wall placed at: ");
+          Serial.print(CurrentX);
+          Serial.print(", ");
+          Serial.println(CurrentY + i);
+        } else {
+          maze[CurrentX][CurrentY + i] = 1;  // Free space
+          Serial.print("Free space at: ");
+          Serial.print(CurrentX);
+          Serial.print(", ");
+          Serial.println(CurrentY + i);
+        }
+      }
     }
   }
 
   if (wallDirection == WEST) {
-    if (CurrentX - (wallDistance / CellSize)) {
-      maze[CurrentX][CurrentY - (wallDistance / CellSize)] = 2;
-      Serial.print("Wall placed at: ");
-      Serial.print(String(CurrentX));
-      Serial.print(" , ");
-      Serial.println(String(CurrentY - (wallDistance / CellSize)));
+    for (int i = 1; i <= wallCellDistance; i++) {
+      if (CurrentY - i > 0) {
+        if (i == wallCellDistance) {
+          maze[CurrentX][CurrentY - i] = 2;  // Wall
+          Serial.print("Wall placed at: ");
+          Serial.print(CurrentX);
+          Serial.print(", ");
+          Serial.println(CurrentY - i);
+        } else {
+          maze[CurrentX][CurrentY - i] = 1;  // Free space
+          Serial.print("Free space at: ");
+          Serial.print(CurrentX);
+          Serial.print(", ");
+          Serial.println(CurrentY - i);
+        }
+      }
     }
   }
 }
+
+
 
 void UpdateLocation() {  //Updates current position
   DebugLn(String(currentDirection), 0);
@@ -916,6 +961,8 @@ void UpdateLocation() {  //Updates current position
       CurrentY = CurrentY - 1;
     }
   }
+
+  maze[CurrentX][CurrentY] = 1;
 }
 
 void Encoder(int TargetDistance) {  //Similar to a wait function, delays the function until the distance is met
