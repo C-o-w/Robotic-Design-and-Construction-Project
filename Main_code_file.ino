@@ -59,7 +59,7 @@ int UltrasoundLeftThreshold = 100;
 int DistanceErrorThreshold = 300;
 
 //Array to store the IR values
-int DistanceValues[3];
+int DistanceValues[4];
 
 //Motor Setup
 #define MotorAPWM 13  //Motor Pins
@@ -91,10 +91,10 @@ String MoveAxis = "X";
 
 int WheelDiameter = 47;        //In mm
 float WheelCircumference = 0;  //Calculated in setup
-int CountsPerRotation = 260;
+int CountsPerRotation = 300;
 int EncoderDifference;
 
-int WheelGap = 89;  //In mm
+int WheelGap = 75;  //In mm
 
 bool Turning = false;
 
@@ -210,6 +210,7 @@ void loop() {  //Just encoder counting and checking for commands, all maze solvi
   CheckCommand();
   PollSensor();
   //PrintSensor();
+
   PrintMessage(String(CurrentX));
   PrintMessage(" : ");
   PrintMessageLn(String(CurrentY));
@@ -220,9 +221,11 @@ void loop() {  //Just encoder counting and checking for commands, all maze solvi
     Serial.print(DistanceValues[i]);
     Serial.println(" mm");
   }
+  /*
   FindWall();
   PrintMaze();
   MoveSpace();
+*/
 
   if (EncoderX.triggered) {
     DebugLn("Encoder X has triggered: ", 1);
@@ -349,13 +352,14 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     DebugLn("Following Left", 0);
     FollowLeft();
   } else if (CurrentCommand == "TestTurn" || CurrentCommand == "testturn" || CurrentCommand == "testTurn" || CurrentCommand == "Testturn") {
+  
     TurnLeft();
   } else if (CurrentCommand == "TestMove" || CurrentCommand == "testmove" || CurrentCommand == "testMove" || CurrentCommand == "Testmove") {
     CommandIntA = CommandInputA.toInt();
     CountsPerRotation = CommandIntA;
     PrintMessageLn("Moving Fowards");
-    Forwards(0.3, 0.3);
-    Encoder(100);
+    Forwards(0.4, 0.4);
+    Encoder(40);
     UpdateLocation();
     Brake();
   } else {
@@ -696,16 +700,16 @@ void PollSensor() {  //Checks the sensors and adds the values to the IR storage 
 
 void MoveSpace() {  //Not set up with correct values, needs to be tested, currently just set up to go based on a timer, ideally would use an encoder (code for which is below)
   PrintMessageLn("Moving Fowards");
-  Forwards(0.2, 0.2);
+  Forwards(0.4, 0.4);
   Encoder(CellSize);
-  UpdateLocation();
   Brake();
+  UpdateLocation();
 }
 
 void TurnLeft() {  //Turns left
   Turning = true;
   PrintMessageLn("Turning Left");
-  Forwards(-0.2, 0.2);
+  Forwards(-0.4, 0.4);
   Encoder(WheelGap);
   Brake();
   MovementList[MovementCounter] = 'B';
@@ -717,7 +721,7 @@ void TurnLeft() {  //Turns left
 void TurnRight() {  //Turns right
   Turning = true;
   PrintMessageLn("Turning Right");
-  Forwards(0.2, -0.2);
+  Forwards(0.4, -0.4);
   Encoder(WheelGap);
   Brake();
   MovementList[MovementCounter] = 'C';
@@ -839,13 +843,13 @@ void IsWallLeft() {  //Checks for wall to the left
 }
 
 void IsWallRight() {  //Checks for wall to the right
-  if (DistanceValues[2] < UltrasoundRightThreshold) {
+  if (DistanceValues[0] < UltrasoundRightThreshold) {
     WallRight = 1;
     PrintMessageLn("Wall Found Right");
   } else {
     WallRight = 0;
   }
-  if (DistanceValues[2] < DistanceErrorThreshold) {
+  if (DistanceValues[0] < DistanceErrorThreshold) {
     PlaceWall(static_cast<Direction>((currentDirection + 1) % 4), DistanceValues[1]);
   }
 }
@@ -864,10 +868,12 @@ void PlaceWall(Direction wallDirection, int wallDistance) {
           Serial.println(CurrentY);
         } else {
           maze[CurrentX + i][CurrentY] = 1;  // Free space
+          /*
           Serial.print("Free space at: ");
           Serial.print(CurrentX + i);
           Serial.print(", ");
           Serial.println(CurrentY);
+          */
         }
       }
     }
@@ -974,17 +980,7 @@ void Encoder(int TargetDistance) {  //Similar to a wait function, delays the fun
     // Update distance traveled
     DistanceTravelled = int(((LeftCounter + RightCounter) / 2) * WheelCircumference / CountsPerRotation);
 
-    // Print debug information
-    Debug("LeftCounter: ", 1);
-    Debug(String(LeftCounter), 1);
-    Debug("RightCounter: ", 1);
-    Debug(String(RightCounter), 1);
-    Debug("DistanceTravelled", 1);
-    DebugLn(String(DistanceTravelled), 1);
 
-    if (!Turning) {
-      FindWall();
-    }
 
     // Check for encoder updates
     noInterrupts();  // Temporarily disable interrupts to safely read shared data
@@ -996,15 +992,28 @@ void Encoder(int TargetDistance) {  //Similar to a wait function, delays the fun
     LeftCounter = leftCount;
     RightCounter = rightCount;
 
-    // Calculate encoder difference
-    EncoderDifference = LeftCounter - RightCounter;
-    Debug("Difference between encoders:", 0);
-    DebugLn(String(EncoderDifference), 0);
 
     // Allow other tasks to run
     vTaskDelay(10 / portTICK_PERIOD_MS);  // FreeRTOS delay for multitasking
   }
+  Brake();
 
+  // Print debug information
+  Debug("LeftCounter: ", 1);
+  Debug(String(LeftCounter), 1);
+  Debug("RightCounter: ", 1);
+  Debug(String(RightCounter), 1);
+  Debug("DistanceTravelled", 1);
+  DebugLn(String(DistanceTravelled), 1);
+
+  // Calculate encoder difference
+  EncoderDifference = LeftCounter - RightCounter;
+  Debug("Difference between encoders:", 0);
+  DebugLn(String(EncoderDifference), 0);
+
+
+  PollSensor();
+  FindWall();
   ResetDistance();
 }
 
@@ -1047,9 +1056,9 @@ void PrintSensors() {  //Prints the values from the sensors, for debug
 }
 
 void IrLoop() {
-  for (uint8_t channel = 1; channel <= 3; channel++) {
+  for (uint8_t channel = 0; channel <= 3; channel++) {
     resetMultiplexer();  // Reset multiplexer to avoid residual channel interference
-    selectChannel(channel);
+    selectChannel((channel));
     delay(100);
 
     // Debugging: Scan for active devices
@@ -1063,7 +1072,7 @@ void IrLoop() {
       Serial.print(": ");
       Serial.print(distance);
       Serial.println(" mm");*/
-      DistanceValues[(channel - 1)] = distance;
+      DistanceValues[(channel)] = distance;
     }
   }
 }
