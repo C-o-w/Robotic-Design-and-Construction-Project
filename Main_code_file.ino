@@ -53,7 +53,7 @@ int WallLeft;
 int WallRight;
 
 //Distance Thresholds in mm
-int UltrasoundFrontThreshold = 50;
+int UltrasoundFrontThreshold = 70;
 int UltrasoundRightThreshold = 100;
 int UltrasoundLeftThreshold = 100;
 int DistanceErrorThreshold = 300;
@@ -94,7 +94,7 @@ float WheelCircumference = 0;  //Calculated in setup
 int CountsPerRotation = 300;
 int EncoderDifference;
 
-int WheelGap = 75;  //In mm
+int WheelGap = 74;  //In mm
 
 bool Turning = false;
 
@@ -352,7 +352,7 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     DebugLn("Following Left", 0);
     FollowLeft();
   } else if (CurrentCommand == "TestTurn" || CurrentCommand == "testturn" || CurrentCommand == "testTurn" || CurrentCommand == "Testturn") {
-  
+
     TurnLeft();
   } else if (CurrentCommand == "TestMove" || CurrentCommand == "testmove" || CurrentCommand == "testMove" || CurrentCommand == "Testmove") {
     CommandIntA = CommandInputA.toInt();
@@ -719,6 +719,10 @@ void TurnLeft() {  //Turns left
 }
 
 void TurnRight() {  //Turns right
+  TurnLeft();
+  TurnLeft();
+  TurnLeft();
+  /*
   Turning = true;
   PrintMessageLn("Turning Right");
   Forwards(0.4, -0.4);
@@ -728,6 +732,7 @@ void TurnRight() {  //Turns right
   MovementCounter = MovementCounter + 1;
   currentDirection = static_cast<Direction>((currentDirection + 1) % 4);  // Incrementing direction and wrapping, wrapping fixes directions "after" west
   Turning = false;
+  */
 }
 
 void TurnBack() {  //Turns left twice
@@ -813,6 +818,7 @@ void CheckUltrasonicSensor2() {  //Checks Right Ultrasonic Sensor
 }
 
 void FindWall() {  //Checks wall locations
+  PollSensor();
   IsWallFront();
   IsWallLeft();
   IsWallRight();
@@ -831,25 +837,25 @@ void IsWallFront() {  //Checks for wall infront
 }
 
 void IsWallLeft() {  //Checks for wall to the left
-  if (DistanceValues[1] < UltrasoundLeftThreshold) {
+  if (DistanceValues[2] < UltrasoundLeftThreshold) {
     WallLeft = 1;
     PrintMessageLn("Wall Found Left");
   } else {
     WallLeft = 0;
   }
-  if (DistanceValues[1] < DistanceErrorThreshold) {
+  if (DistanceValues[2] < DistanceErrorThreshold) {
     PlaceWall(static_cast<Direction>((currentDirection + 3) % 4), DistanceValues[2]);
   }
 }
 
 void IsWallRight() {  //Checks for wall to the right
-  if (DistanceValues[0] < UltrasoundRightThreshold) {
+  if (DistanceValues[1] < UltrasoundRightThreshold) {
     WallRight = 1;
     PrintMessageLn("Wall Found Right");
   } else {
     WallRight = 0;
   }
-  if (DistanceValues[0] < DistanceErrorThreshold) {
+  if (DistanceValues[1] < DistanceErrorThreshold) {
     PlaceWall(static_cast<Direction>((currentDirection + 1) % 4), DistanceValues[1]);
   }
 }
@@ -1026,14 +1032,29 @@ void ResetDistance() {  //Resets the encoder distances
 void FollowLeft() {  //Solve using follow left wall
   while (IsAtDestination(CurrentX, CurrentY, endRow, endCol) == false) {
     FindWall();
+    PrintSensors();
     if (WallLeft == 0) {
-      TurnLeft();
       MoveSpace();
+      MoveSpace();
+      MoveSpace();
+      FindWall();
+      TurnLeft();
+      while (WallLeft == 1) {
+        MoveSpace();
+        FindWall();
+      }
+      MoveSpace();
+      MoveSpace();
+      MoveSpace();
+      MoveSpace();
+      MoveSpace();  
+
     } else {
       if (WallFront == 0) {
         MoveSpace();
       } else if (WallRight == 0) {
         TurnRight();
+        MoveSpace();
         MoveSpace();
       } else {
         TurnBack();
@@ -1045,7 +1066,6 @@ void FollowLeft() {  //Solve using follow left wall
 }
 
 void PrintSensors() {  //Prints the values from the sensors, for debug
-  PollSensor();
   FindWall();
   PrintMessage("Sensor 1: ");
   PrintMessage(String(DistanceValues[0]));
@@ -1059,7 +1079,7 @@ void IrLoop() {
   for (uint8_t channel = 0; channel <= 3; channel++) {
     resetMultiplexer();  // Reset multiplexer to avoid residual channel interference
     selectChannel((channel));
-    delay(100);
+    delay(50);
 
     // Debugging: Scan for active devices
     // scanI2C();
@@ -1091,7 +1111,7 @@ void selectChannel(uint8_t channel) {
   } else {
     Serial.println("Error selecting channel.");
   }
-  delay(200);  // Stabilization delay
+  delay(100);  // Stabilization delay
 }
 
 int readDistance() {
