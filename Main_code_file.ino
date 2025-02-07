@@ -362,6 +362,8 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
     Encoder(40);
     UpdateLocation();
     Brake();
+  } else if (CurrentCommand == "Align" || CurrentCommand == "align") {
+    Align();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -718,6 +720,20 @@ void TurnLeft() {  //Turns left
   Turning = false;
 }
 
+void TurnLeftAngle(float AngleL) {
+  Turning = true;
+  PrintMessageLn("Turning Left");
+  Forwards(-0.4, 0.4);
+  int TurnRatio = round((AngleL / 90) * 100);
+  Encoder(round((WheelGap * TurnRatio)) / 100);
+  Brake();
+  MovementList[MovementCounter] = 'B';
+  MovementCounter = MovementCounter + 1;
+  currentDirection = static_cast<Direction>((currentDirection + 3) % 4);  // Decrementing direction and wrapping, subtracting didnt work, but adding 3 and wrapping works
+  Turning = false;
+}
+
+
 void TurnRight() {  //Turns right
   TurnLeft();
   TurnLeft();
@@ -733,6 +749,12 @@ void TurnRight() {  //Turns right
   currentDirection = static_cast<Direction>((currentDirection + 1) % 4);  // Incrementing direction and wrapping, wrapping fixes directions "after" west
   Turning = false;
   */
+}
+
+void TurnRightAngle(int AngleR) {
+  TurnLeft();
+  TurnLeft();
+  TurnLeftAngle(90 - AngleR);
 }
 
 void TurnBack() {  //Turns left twice
@@ -979,6 +1001,8 @@ void UpdateLocation() {  //Updates current position
 
 void Encoder(int TargetDistance) {  //Similar to a wait function, delays the function until the distance is met
 
+  PrintMessage("Target Distance :");
+  PrintMessageLn(String(TargetDistance));
   ResetDistance();
   ResetEncoder();
 
@@ -1047,7 +1071,7 @@ void FollowLeft() {  //Solve using follow left wall
       MoveSpace();
       MoveSpace();
       MoveSpace();
-      MoveSpace();  
+      MoveSpace();
 
     } else {
       if (WallFront == 0) {
@@ -1159,4 +1183,21 @@ void resetMultiplexer() {
   Wire.write(0x00);  // Disable all channels
   Wire.endTransmission();
   delay(100);  // Allow time to reset
+}
+
+void Align() {
+  PollSensor();
+  if (DistanceValues[0] > DistanceValues[3]) {
+    float TurnAngle = (atan2(DistanceValues[0] - DistanceValues[3], 35) * (180.0 / PI));
+    //int TurnInt = round(TurnAngle);
+    TurnRightAngle(TurnAngle);
+    PrintMessage("Angle: ");
+    PrintMessageLn(String(TurnAngle));
+  } else if (DistanceValues[0] < DistanceValues[3]) {
+    float TurnAngle = (atan2(DistanceValues[3] - DistanceValues[0], 35) * (180.0 / PI));
+    //int TurnInt = round(TurnAngle);
+    TurnLeftAngle(TurnAngle);
+    PrintMessage("Angle: ");
+    PrintMessageLn(String(TurnAngle));
+  }
 }
