@@ -1,3 +1,8 @@
+#include <BTAddress.h>
+#include <BTAdvertisedDevice.h>
+#include <BTScan.h>
+//#include <BluetoothSerial.h>
+
 // Main change to take note of, using PrintMessage() and PrintMessageLn() instead of print to allow it to switch between bluetooth and serial depending which is enabled with variables (line 332-407)
 // Debug and DebugLn also included, 0 for regular debug, 1 for verbose debug
 
@@ -54,12 +59,14 @@ int WallRight;
 
 //Distance Thresholds in mm
 int UltrasoundFrontThreshold = 70;
-int UltrasoundRightThreshold = 100;
-int UltrasoundLeftThreshold = 100;
+int UltrasoundRightThreshold = 200;
+int UltrasoundLeftThreshold = 200;
 int DistanceErrorThreshold = 300;
 
 //Array to store the IR values
 int DistanceValues[4];
+int DistanceLog[4] = { 652, 652, 652, 652 };
+int DistanceAverages[4];
 
 //Motor Setup
 #define MotorAPWM 13  //Motor Pins
@@ -110,7 +117,7 @@ float CommandIntB;                  //Used if the second input is an int
 String OutputString = ("INITIAL");  //Used for data output
 
 bool StopFollow = false;
-bool Mapping = true;
+bool Mapping = false;
 
 //Variables to declare which outputs to use. Bluetooth much cleaner than serial due to problems with ledc
 int BluetoothEnabled = 1;
@@ -124,8 +131,8 @@ int DebugFloat;  //For passing floats to debug when needed
 int MovementCounter = 0;
 char MovementList[] = {};  //Forwards = A, TurnLeft = B, TurnRight = C, Back = D
 
-#define N1 50      // Size of the maze (20x20) ROW
-#define N2 37       //                          COL
+#define N1 20       // Size of the maze (20x20) ROW
+#define N2 20       //                          COL
 #define INF 999999  // Infinity, representing unvisited cells
 int CellSize = 40;  //Size of one cell in MM
 
@@ -134,14 +141,93 @@ int dRow[] = { -1, 1, 0, 0 };  // Row direction for up and down
 int dCol[] = { 0, 0, -1, 1 };  // Column direction for left and right
 
 // Maze: 0 for unknown, 1 for free space, 2 for wall, temporoary simulated map, in future fill with 0s as base and fill information as found
-int maze[N1][N2] = {};
+//int maze[N1][N2] = {};
 
+
+int maze[N1][N2] = {
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 }
+};
+
+/*
+int maze[N1][N2] = {
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 },
+  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1 }
+};
+
+*/
 
 int startRow = 0;  // Top-left X position
 int startCol = 0;  // Top-left Y position
-int endRow = 49;   // Bottom-right X position
-int endCol = 36;   // Bottom-right Y position
-  
+int endRow = 40;   // Bottom-right X position
+int endCol = 30;   // Bottom-right Y position
+
 
 std::vector<std::pair<int, int>> path;
 
@@ -380,8 +466,10 @@ void ReadCommand() {  //Detects the markers in the code and separates the sectio
   } else if (CurrentCommand == "DisableMapping" || CurrentCommand == "disablemapping" || CurrentCommand == "disableMapping" || CurrentCommand == "Disablemapping") {
     Mapping = false;
     DebugLn("MappingDisabled", 0);
-    } else if (CurrentCommand == "PrintMaze" || CurrentCommand == "printmaze" || CurrentCommand == "printMaze" || CurrentCommand == "Printmaze") {
-      PrintMaze();
+  } else if (CurrentCommand == "PrintMaze" || CurrentCommand == "printmaze" || CurrentCommand == "printMaze" || CurrentCommand == "Printmaze") {
+    PrintMaze();
+  } else if (CurrentCommand == "TestMaze" || CurrentCommand == "testmaze" || CurrentCommand == "testMaze" || CurrentCommand == "Testmaze") {
+    InitializeTestMaze();
   } else {
     PrintMessageLn("Unknown Command, did you remember the colons?");
     delay(1000);
@@ -466,14 +554,24 @@ void DebugLn(String MessageLn, int Verbose) {  //Used to send outputs over both 
 }
 
 void InitializeMaze() {  //Sets the maze as all empty spaces
-
+  /*
   for (int i = 0; i < N1; i++) {
     for (int j = 0; j < N2; j++) {
       maze[i][j] = 1;  // Initialize all maze cells as unknown space
     }
   }
+*/
 }
 
+void InitializeTestMaze() {  //Sets the maze as all empty spaces
+  /*
+  for (int i = 0; i < N1; i++) {
+    for (int j = 0; j < N2; j++) {
+      maze[i][j] = SimMaze[i][j];  // Initialize all maze cells as unknown space
+    }
+  }
+  */
+}
 /*
 void PrintMaze() {  //Outputs the maze
   for (int i = 0; i < N1; i++) {
@@ -508,10 +606,10 @@ void PrintMaze() {
         PrintMessage("?");  // Unknown space
       }
     }
-    PrintMessageLn(""); // New line for each row
+    PrintMessageLn("");  // New line for each row
   }
-  
-  PrintMessageLn("");  
+
+  PrintMessageLn("");
   PrintMessage("Robot Center Position: (");
   PrintMessage(String(CurrentX));
   PrintMessage(", ");
@@ -524,6 +622,7 @@ void PrintMaze() {
 void SolveMaze(int targetPosX, int targetPosY) {  // Run Dijkstra to solve the maze and get the path
   endRow = targetPosX;
   endCol = targetPosY;
+  Serial.println("Test");
   Dijkstra(startRow, startCol, endRow, endCol, path);
   delay(1000);
   Serial.println("Begin Navigation");
@@ -686,10 +785,11 @@ void DijkstraMove(std::vector<std::pair<int, int>>& path, int& currentIdx) {  //
     int nextRow = path[currentIdx + 1].first;
     int nextCol = path[currentIdx + 1].second;
 
+
     // Determine the direction to move
-    if (nextRow == currentRow - 1 && nextCol == currentCol) {
+    if (nextRow == currentRow + 1 && nextCol == currentCol) {
       RotateTo(NORTH);  // Move up
-    } else if (nextRow == currentRow + 1 && nextCol == currentCol) {
+    } else if (nextRow == currentRow - 1 && nextCol == currentCol) {
       RotateTo(SOUTH);  // Move down
     } else if (nextRow == currentRow && nextCol == currentCol + 1) {
       RotateTo(EAST);  // Move right
@@ -756,8 +856,9 @@ void MoveSpace() {  //Not set up with correct values, needs to be tested, curren
   UpdateLocation();
 }
 
-void TurnLeft() {  //Turns left
-  TurnLeftAngle(100);
+void TurnLeft() {                                                         //Turns left
+  TurnLeftAngle(103);                                                      //Was 102
+  currentDirection = static_cast<Direction>((currentDirection + 3) % 4);  // Decrementing direction and wrapping, subtracting didnt work, but adding 3 and wrapping works
   /*
   Turning = true;
   PrintMessageLn("Turning Left");
@@ -779,7 +880,7 @@ void TurnLeftAngle(float AngleL) {
   Brake();
   MovementList[MovementCounter] = 'B';
   MovementCounter = MovementCounter + 1;
-  currentDirection = static_cast<Direction>((currentDirection + 3) % 4);  // Decrementing direction and wrapping, subtracting didnt work, but adding 3 and wrapping works
+  //currentDirection = static_cast<Direction>((currentDirection + 3) % 4);  // Decrementing direction and wrapping, subtracting didnt work, but adding 3 and wrapping works
   Turning = false;
 }
 
@@ -810,7 +911,9 @@ void TurnLeftAngle(float AngleL) {
 */
 
 void TurnRight() {  //Turns right
-  TurnRightAngle(100);
+  TurnRightAngle(94);
+  currentDirection = static_cast<Direction>((currentDirection + 1) % 4);  // Incrementing direction and wrapping, wrapping fixes directions "after" west
+
   /*
   Turning = true;
   PrintMessageLn("Turning Right");
@@ -913,27 +1016,31 @@ void CheckUltrasonicSensor2() {  //Checks Right Ultrasonic Sensor
 void FindWall() {  //Checks wall locations
   PollSensor();
   IsWallFront();
+  delay(10);
   IsWallLeft();
+  delay(10);
   IsWallRight();
+  PrintSensors();
 }
 
 void IsWallFront() {  //Checks for wall infront
-  if (DistanceValues[0] < UltrasoundFrontThreshold) {
+  if (DistanceValues[0] < UltrasoundFrontThreshold || ((DistanceValues[0] == 652 && DistanceLog[0] < UltrasoundFrontThreshold))) {
     WallFront = 1;
     PrintMessageLn("Wall Found Front");
   } else if (DistanceValues[3] < UltrasoundFrontThreshold) {
     WallFront = 1;
-    PrintMessageLn("Wall Found Front");
+    PrintMessageLn("Wal Found Front");
   } else {
     WallFront = 0;
   }
   if (DistanceValues[0] < DistanceErrorThreshold) {
     PlaceWall(currentDirection, DistanceValues[0]);
   }
+  DistanceLog[0] = DistanceValues[0];
 }
 
 void IsWallLeft() {  //Checks for wall to the left
-  if (DistanceValues[2] < UltrasoundLeftThreshold) {
+  if (DistanceValues[2] < UltrasoundLeftThreshold || ((DistanceValues[2] == 652 && DistanceLog[2] < UltrasoundLeftThreshold))) {
     WallLeft = 1;
     PrintMessageLn("Wall Found Left");
   } else {
@@ -942,10 +1049,11 @@ void IsWallLeft() {  //Checks for wall to the left
   if (DistanceValues[2] < DistanceErrorThreshold) {
     PlaceWall(static_cast<Direction>((currentDirection + 3) % 4), DistanceValues[2]);
   }
+  DistanceLog[2] = DistanceValues[2];
 }
 
 void IsWallRight() {  //Checks for wall to the right
-  if (DistanceValues[1] < UltrasoundRightThreshold) {
+  if (DistanceValues[1] < UltrasoundRightThreshold || ((DistanceValues[1] == 652 && DistanceLog[1] < UltrasoundRightThreshold))) {
     WallRight = 1;
     PrintMessageLn("Wall Found Right");
   } else {
@@ -954,10 +1062,11 @@ void IsWallRight() {  //Checks for wall to the right
   if (DistanceValues[1] < DistanceErrorThreshold) {
     PlaceWall(static_cast<Direction>((currentDirection + 1) % 4), DistanceValues[1]);
   }
+  DistanceLog[1] = DistanceValues[1];
 }
 
 void PlaceWall(Direction wallDirection, int wallDistance) {
-  if (!Mapping) return; // Only place walls when mapping is enabled
+  if (!Mapping) return;  // Only place walls when mapping is enabled
 
   int wallCellDistance = wallDistance / CellSize;
 
@@ -970,10 +1079,10 @@ void PlaceWall(Direction wallDirection, int wallDistance) {
   int sensorY = centerY;
 
   switch (wallDirection) {
-    case NORTH: sensorX += 2; break; // X increases North
-    case SOUTH: sensorX -= 2; break; // X decreases South
-    case EAST:  sensorY += 2; break; // Y increases East
-    case WEST:  sensorY -= 2; break; // Y decreases West
+    case NORTH: sensorX += 2; break;  // X increases North
+    case SOUTH: sensorX -= 2; break;  // X decreases South
+    case EAST: sensorY += 2; break;   // Y increases East
+    case WEST: sensorY -= 2; break;   // Y decreases West
   }
 
   // Determine the final wall position
@@ -981,15 +1090,15 @@ void PlaceWall(Direction wallDirection, int wallDistance) {
   int wallY = sensorY;
 
   switch (wallDirection) {
-    case NORTH: wallX += wallCellDistance; break; // Move North (increase X)
-    case SOUTH: wallX -= wallCellDistance; break; // Move South (decrease X)
-    case EAST:  wallY += wallCellDistance; break; // Move East (increase Y)
-    case WEST:  wallY -= wallCellDistance; break; // Move West (decrease Y)
+    case NORTH: wallX += wallCellDistance; break;  // Move North (increase X)
+    case SOUTH: wallX -= wallCellDistance; break;  // Move South (decrease X)
+    case EAST: wallY += wallCellDistance; break;   // Move East (increase Y)
+    case WEST: wallY -= wallCellDistance; break;   // Move West (decrease Y)
   }
 
   // Ensure we're within bounds before placing the wall
   if (wallX >= 0 && wallX < N2 && wallY >= 0 && wallY < N1) {
-    maze[wallY][wallX] = 2; // Place the wall
+    maze[wallY][wallX] = 2;  // Place the wall
   }
 
   // Debug output for verification
@@ -1083,64 +1192,120 @@ void ResetDistance() {  //Resets the encoder distances
 }
 
 void FollowLeft() {  //Solve using follow left wall
-  StopFollow = false;
-  while (StopFollow == false) {
+  while (true) {
+    bool Aligned = false;
     CheckCommand();
     FindWall();
+    if (WallFront == 1) {
+      DebugLn("BeforeAlign", 0);
+      Align();
+      Aligned == true;
+    }
+    DebugLn("After Align", 0);
     if (WallLeft == 0) {
-      DebugLn("Entered Right Movement", 0);
-      for (int i = 1; i <= 3; i++) {
+      DebugLn("Entered Left Movement", 0);
+      for (int b = 1; b <= 3; b++) {
+        DebugLn("Loop B", 0);
         FindWall();
         if (WallFront == 0) {
           MoveSpace();
+          Aligned == false;
         }
       }
       FindWall();
-      TurnLeft();
-      while (WallLeft == 1) {
-        MoveSpace();
-        FindWall();
+
+      if (WallFront == 1) {
+        if (Aligned == false) {
+          DebugLn("Aligning", 0);
+          Align();
+          delay(100);
+          Aligned == true;
+        }
       }
-      for (int i = 1; i <= 5; i++) {
+
+      TurnLeft();
+      DebugLn("After left turn", 0);
+      FindWall();
+
+      for (int v = 1; v <= 5; v++) {
+        if (WallLeft == 1) {
+          DebugLn("Loop V", 0);
+          MoveSpace();
+          FindWall();
+          Aligned == false;
+        }
+      }
+
+      if (WallFront == 1) {
+        if (Aligned == false) {
+          DebugLn("Aligning", 0);
+          Align();
+          delay(100);
+          Aligned == true;
+        }
+      }
+
+      for (int n = 1; n <= 6; n++) {
+        DebugLn("Loop N", 0);
         FindWall();
         if (WallFront == 0) {
           MoveSpace();
+          Aligned == false;
         }
       }
+      DebugLn("Exiting Left Movement", 0);
     } else if (WallFront == 0) {
       DebugLn("Entered Front Movement", 0);
       MoveSpace();
+      Aligned == false;
     } else if (WallRight == 0) {
       DebugLn("Entered Right Movement", 0);
+      FindWall();
       if (WallFront == 1) {
-        Debug("BeforeAlign",0);
-        Align();
+        if (Aligned == false) {
+
+          DebugLn("Aligning", 0);
+          Align();
+          Aligned == true;
+          delay(100);
+        }
       }
-      Debug("After Align",0);
       TurnRight();
-      for (int i = 1; i <= 2; i++) {
+      for (int m = 1; m <= 2; m++) {
+        DebugLn("Loop M", 0);
         FindWall();
         if (WallFront == 0) {
           MoveSpace();
+          Aligned == false;
+        }
+      }
+      if (WallFront == 1) {
+        if (Aligned == false) {
+          DebugLn("Aligning", 0);
+          Align();
+          Aligned == true;
+          delay(100);
         }
       }
     } else {
       DebugLn("Entered Backwards Movement", 0);
       TurnBack();
       MoveSpace();
+      Aligned == false;
     }
   }
   PrintMessageLn("Maze Solved :)");
 }
 
 void PrintSensors() {  //Prints the values from the sensors, for debug
-  FindWall();
-  PrintMessage("Sensor 1: ");
+  PrintMessage("Sensor Front: ");
   PrintMessage(String(DistanceValues[0]));
-  PrintMessage("Sensor 2: ");
+  PrintMessage("Sensor Right: ");
   PrintMessage(String(DistanceValues[1]));
-  PrintMessage("Sensor 3: ");
-  PrintMessageLn(String(DistanceValues[2]));
+  PrintMessage("Sensor Left: ");
+  PrintMessage(String(DistanceValues[2]));
+  PrintMessage("Sensor Front Offset");
+  PrintMessageLn(String(DistanceValues[3]));
 }
 
 void IrLoop() {
@@ -1230,22 +1395,61 @@ void resetMultiplexer() {
 }
 
 void Align() {
-  AlignTurn();
-}
+  bool AlignmentCheck = false;
+  //while (AlignmentCheck == false) {
+  for (int c = 1; c <= 3; c++) {
+    PollSensor();
+    DistanceAverages[0] = DistanceAverages[0] + DistanceValues[0];
+    DistanceAverages[3] = DistanceAverages[3] + DistanceValues[3];
+  }
+  DistanceAverages[0] = DistanceAverages[0] / 3;
+  DistanceAverages[3] = DistanceAverages[3] / 3;
+  PrintMessage("Average 1: ");
+  PrintMessageLn(String(DistanceAverages[0]));
+  PrintMessage(" Average 2: ");
+  PrintMessageLn(String(DistanceAverages[3]));
 
-void AlignTurn() {
-  PollSensor();
-  if (DistanceValues[0] > DistanceValues[3]) {
-    float TurnAngle = (atan2(DistanceValues[0] - DistanceValues[3], 35) * (180.0 / PI));
+  if (DistanceAverages[0] > DistanceAverages[3]) {
+    float TurnAngle = (atan2(DistanceAverages[0] - DistanceAverages[3], 35) * (180.0 / PI));
     //int TurnInt = round(TurnAngle);
     TurnLeftAngle(TurnAngle);
     PrintMessage("Angle: ");
     PrintMessageLn(String(TurnAngle));
-  } else if (DistanceValues[0] < DistanceValues[3]) {
-    float TurnAngle = (atan2(DistanceValues[3] - DistanceValues[0], 35) * (180.0 / PI));
+  } else if (DistanceAverages[0] < DistanceAverages[3]) {
+    float TurnAngle = (atan2(DistanceAverages[3] - DistanceAverages[0], 35) * (180.0 / PI));
     //int TurnInt = round(TurnAngle);
     TurnRightAngle(TurnAngle);
     PrintMessage("Angle: ");
     PrintMessageLn(String(TurnAngle));
+    /*
+    for (int c = 1; c <= 3; c++) {
+      PollSensor();
+      DistanceAverages[0] = DistanceAverages[0] + DistanceValues[0];
+      DistanceAverages[3] = DistanceAverages[3] + DistanceValues[3];
+    }
+    
+      if (((DistanceAverages[0] > (DistanceAverages[3] - 10)) && (DistanceAverages[0] < (DistanceAverages[3] + 10)) || (DistanceAverages[3] > (DistanceAverages[0] - 10)) && (DistanceAverages[3] < (DistanceAverages[0] + 10)))) {
+        AlignmentCheck = true;
+        PrintMessage("Alignment Check is true");
+      }
+      */
+    /*
+      if (DistanceAverages[0] > DistanceAverages[3]) {
+        if (DistanceAverages[0] < (DistanceAverages[3] + 8)) {
+          AlignmentCheck = true;
+          PrintMessage("Alignment Check is true");
+        }
+      } else if (DistanceAverages[3] > DistanceAverages[0]) {
+        if (DistanceAverages[3] < (DistanceAverages[0] + 8)) {
+          AlignmentCheck = true;
+          PrintMessage("Alignment Check is true");
+        }
+      } else if (DistanceAverages[0] == DistanceAverages[3]) {
+        AlignmentCheck = true;
+        PrintMessage("Alignment Check is true");
+      }
+      */
   }
+  //}
 }
+//}
